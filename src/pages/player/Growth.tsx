@@ -1,55 +1,78 @@
 import React, { useMemo } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  ComposedChart, LineChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useStore } from "../../lib/store";
 import { evaluate } from "../../lib/gpe";
-import { PageHead } from "../../components/ui";
+import { PageHead, Note, Delta } from "../../components/ui";
+import "../../styles/player.css";
 
 /* 차트 테마 — 전부 CSS 토큰. SVG 속성(stroke/fill)에도 var()가 그대로 먹는다. */
-const chartTheme = {
-  grid: "var(--chart-grid)",
-  tick: { fill: "var(--fg-3)", fontSize: 11.5 },
-  tooltip: {
-    contentStyle: {
-      background: "var(--surface-3)",
-      border: "1px solid var(--line-2)",
-      borderRadius: 10,
-      color: "var(--fg)",
-      fontSize: 12.5,
-      boxShadow: "var(--shadow-pop)",
-    },
-    labelStyle: { color: "var(--fg-2)", marginBottom: 4 },
-    itemStyle: { padding: 0 },
-    cursor: { stroke: "var(--line-2)" },
+const tick = { fill: "var(--fg-3)", fontSize: 11.5 };
+const tooltip = {
+  contentStyle: {
+    background: "var(--surface-3)",
+    border: "1px solid var(--line-2)",
+    borderRadius: 10,
+    color: "var(--fg)",
+    fontSize: 12.5,
+    boxShadow: "var(--shadow-pop)",
   },
+  labelStyle: { color: "var(--fg-2)", marginBottom: 4 },
+  itemStyle: { padding: 0 },
+  cursor: { stroke: "var(--line-2)" },
 };
-
 const activeDot = { r: 4, strokeWidth: 0 };
 
-type LegendItem = { label: string; color: string };
+/* 범례 색은 player.css 의 .sw-* 클래스로 */
+type Swatch = "brand" | "2" | "3" | "4" | "5";
+type LegendItem = { label: string; sw: Swatch };
 
-function ChartCard({
-  title, legend, comment, children,
-}: { title: string; legend: LegendItem[]; comment: string; children: React.ReactElement }) {
+function ChartPanel({
+  title, legend, kpi, comment, children,
+}: {
+  title: string;
+  legend: LegendItem[];
+  kpi: React.ReactNode;
+  comment: string;
+  children: React.ReactElement;
+}) {
   return (
-    <div className="card">
-      <div className="card-head">
-        <h3>{title}</h3>
-      </div>
-      <div className="chart-legend">
-        {legend.map(l => (
-          <span key={l.label}>
-            <i style={{ background: l.color }} />
-            {l.label}
-          </span>
-        ))}
+    <div className="panel">
+      <div className="chart-head">
+        <div>
+          <h3>{title}</h3>
+          <div className="chart-legend mt8">
+            {legend.map(l => (
+              <span key={l.label}>
+                <i className={`sw-${l.sw}`} />
+                {l.label}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="chart-kpi">{kpi}</div>
       </div>
       <div className="chart-box">
         <ResponsiveContainer>{children}</ResponsiveContainer>
       </div>
-      <div className="callout mt12">{comment}</div>
+      <Note className="mt12">{comment}</Note>
     </div>
+  );
+}
+
+/* 차트 머리 오른쪽의 최근 값 + 증감 */
+function Kpi({ value, unit, delta, deltaUnit, digits, invert }: {
+  value: React.ReactNode; unit: string; delta: number; deltaUnit?: string; digits?: number; invert?: boolean;
+}) {
+  return (
+    <>
+      <span className="display sm">
+        {value}
+        <span className="unit">{unit}</span>
+      </span>
+      <Delta value={delta} unit={deltaUnit} vs="첫 측정" digits={digits} invert={invert} />
+    </>
   );
 }
 
@@ -112,85 +135,99 @@ export default function GrowthPage() {
         desc={<>측정 기록 <b>{player.records.length}회</b> 누적 — 분야별 성장 추이와 코멘트입니다.</>}
       />
 
-      <div className="grid cols-2">
-        <ChartCard
+      <div className="grid cols-2 gap-lg">
+        <ChartPanel
           title="분야별 점수 추이"
           legend={[
-            { label: "종합", color: "var(--chart-1)" },
-            { label: "신체", color: "var(--chart-2)" },
-            { label: "운동능력", color: "var(--chart-3)" },
-            { label: "실전", color: "var(--chart-4)" },
+            { label: "종합", sw: "brand" },
+            { label: "신체", sw: "2" },
+            { label: "운동능력", sw: "3" },
+            { label: "실전", sw: "4" },
           ]}
+          kpi={<Kpi value={last.종합} unit="점" delta={last.종합 - first.종합} digits={0} />}
           comment={scoreComment}
         >
-          <LineChart data={rows}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="date" tick={chartTheme.tick} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, 100]} tick={chartTheme.tick} axisLine={false} tickLine={false} width={32} />
-            <Tooltip {...chartTheme.tooltip} />
-            <Line type="monotone" dataKey="종합" stroke="var(--chart-1)" strokeWidth={2.5} dot={false} activeDot={activeDot} />
+          <ComposedChart data={rows}>
+            <defs>
+              <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--brand)" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="var(--brand)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+            <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
+            <YAxis domain={[0, 100]} tick={tick} axisLine={false} tickLine={false} width={34} />
+            <Tooltip {...tooltip} />
+            <Area
+              type="monotone" dataKey="종합" stroke="none" fill="url(#gTotal)"
+              dot={false} activeDot={false} tooltipType="none" legendType="none" isAnimationActive={false}
+            />
+            <Line type="monotone" dataKey="종합" stroke="var(--brand)" strokeWidth={2.5} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="신체" stroke="var(--chart-2)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="운동능력" stroke="var(--chart-3)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="실전" stroke="var(--chart-4)" strokeWidth={2} dot={false} activeDot={activeDot} />
-          </LineChart>
-        </ChartCard>
+          </ComposedChart>
+        </ChartPanel>
 
-        <ChartCard
-          title="신체 성장 (키 · 몸무게 · 골격근량)"
+        <ChartPanel
+          title="신체 성장"
           legend={[
-            { label: "키", color: "var(--chart-2)" },
-            { label: "몸무게", color: "var(--chart-5)" },
-            { label: "골격근량", color: "var(--chart-3)" },
+            { label: "키 (cm)", sw: "2" },
+            { label: "몸무게 (kg)", sw: "5" },
+            { label: "골격근량 (kg)", sw: "3" },
           ]}
+          kpi={<Kpi value={last.키} unit="cm" delta={last.키 - first.키} deltaUnit="cm" />}
           comment={bodyComment}
         >
           <LineChart data={rows}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="date" tick={chartTheme.tick} axisLine={false} tickLine={false} />
-            <YAxis tick={chartTheme.tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={32} />
-            <Tooltip {...chartTheme.tooltip} />
+            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+            <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
+            <YAxis tick={tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={34} />
+            <Tooltip {...tooltip} />
             <Line type="monotone" dataKey="키" stroke="var(--chart-2)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="몸무게" stroke="var(--chart-5)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="골격근량" stroke="var(--chart-3)" strokeWidth={2} dot={false} activeDot={activeDot} />
           </LineChart>
-        </ChartCard>
+        </ChartPanel>
 
-        <ChartCard
-          title={isPitcher ? "실전 (구속 · 커맨드)" : "실전 (송구 속도 · 정확도)"}
+        <ChartPanel
+          title={isPitcher ? "실전 — 구속 · 커맨드" : "실전 — 송구 속도 · 정확도"}
           legend={[
-            { label: veloLabel, color: "var(--chart-4)" },
-            { label: cmdLabel, color: "var(--chart-2)" },
+            { label: `${veloLabel} (km/h)`, sw: "4" },
+            { label: cmdLabel, sw: "2" },
           ]}
+          kpi={<Kpi value={last.구속} unit="km/h" delta={last.구속 - first.구속} digits={0} />}
           comment={practicalComment}
         >
           <LineChart data={rows}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="date" tick={chartTheme.tick} axisLine={false} tickLine={false} />
-            <YAxis tick={chartTheme.tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={32} />
-            <Tooltip {...chartTheme.tooltip} />
+            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+            <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
+            <YAxis tick={tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={34} />
+            <Tooltip {...tooltip} />
             <Line type="monotone" dataKey="구속" name={veloLabel} stroke="var(--chart-4)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="커맨드" name={cmdLabel} stroke="var(--chart-2)" strokeWidth={2} dot={false} activeDot={activeDot} />
           </LineChart>
-        </ChartCard>
+        </ChartPanel>
 
-        <ChartCard
-          title="운동능력 (60yd 대시 · 스쿼트)"
+        <ChartPanel
+          title="운동능력 — 60yd 대시 · 스쿼트"
           legend={[
-            { label: "60yd (초, 낮을수록 좋음)", color: "var(--chart-5)" },
-            { label: "스쿼트 (kg)", color: "var(--chart-3)" },
+            { label: "60yd (초, 낮을수록 좋음)", sw: "5" },
+            { label: "스쿼트 (kg)", sw: "3" },
           ]}
+          kpi={<Kpi value={last["60yd"]} unit="초" delta={last["60yd"] - first["60yd"]} digits={2} invert />}
           comment={athleticComment}
         >
           <LineChart data={rows}>
-            <CartesianGrid stroke={chartTheme.grid} vertical={false} />
-            <XAxis dataKey="date" tick={chartTheme.tick} axisLine={false} tickLine={false} />
-            <YAxis yAxisId="l" tick={chartTheme.tick} domain={["dataMin - 0.3", "dataMax + 0.3"]} axisLine={false} tickLine={false} width={32} />
-            <YAxis yAxisId="r" orientation="right" tick={chartTheme.tick} domain={["dataMin - 10", "dataMax + 10"]} axisLine={false} tickLine={false} width={32} />
-            <Tooltip {...chartTheme.tooltip} />
+            <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
+            <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
+            <YAxis yAxisId="l" tick={tick} domain={["dataMin - 0.3", "dataMax + 0.3"]} axisLine={false} tickLine={false} width={34} />
+            <YAxis yAxisId="r" orientation="right" tick={tick} domain={["dataMin - 10", "dataMax + 10"]} axisLine={false} tickLine={false} width={34} />
+            <Tooltip {...tooltip} />
             <Line yAxisId="l" type="monotone" dataKey="60yd" name="60yd (초, 낮을수록 좋음)" stroke="var(--chart-5)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line yAxisId="r" type="monotone" dataKey="스쿼트" name="스쿼트 (kg)" stroke="var(--chart-3)" strokeWidth={2} dot={false} activeDot={activeDot} />
           </LineChart>
-        </ChartCard>
+        </ChartPanel>
       </div>
     </>
   );

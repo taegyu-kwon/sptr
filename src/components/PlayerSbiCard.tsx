@@ -1,7 +1,8 @@
 import React, { useState } from "react";
+import "../styles/sbi.css";
 import type { Player } from "../lib/types";
 import { evaluatePlayerSbi, r1 } from "../lib/sbi";
-import { ScoreBar, Empty } from "./ui";
+import { ScoreBar, ScoreRing, Empty } from "./ui";
 
 export default function PlayerSbiCard({ player }: { player: Player }) {
   const res = evaluatePlayerSbi(player);
@@ -9,7 +10,7 @@ export default function PlayerSbiCard({ player }: { player: Player }) {
 
   if (!res) {
     return (
-      <div className="card">
+      <div className="panel">
         <div className="card-head">
           <h3>SBI / SMI</h3>
           <span className="meta">U15</span>
@@ -25,35 +26,36 @@ export default function PlayerSbiCard({ player }: { player: Player }) {
   ];
 
   return (
-    <div className="card">
+    <div className="panel hero">
       <div className="card-head">
         <h3>SBI / SMI</h3>
         <span className="meta">U15</span>
       </div>
 
-      <div className="hero-num">
-        <div className="hn-label">최종 점수 R</div>
-        <div className="hn-value">{r1(res.finalR)}</div>
-        <div className="hn-sub">R = SBI/2 + SMI/2</div>
-      </div>
+      <div className="flex gap24 wrap start sbi-hero-row">
+        <ScoreRing value={res.finalR} size={132} stroke={10} label="최종 R" display={r1(res.finalR)} />
 
-      <div className="tile-row mt16">
-        {tiles.map(item => {
-          const on = detail === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              className={`tile${on ? " on" : ""}`}
-              aria-pressed={on}
-              onClick={() => setDetail(d => (d === item.key ? null : item.key))}
-            >
-              <span className="t-label">{item.label}</span>
-              <span className="t-value">{r1(item.value)}</span>
-              <span className="t-sub">{on ? "닫기" : "종목 그래프"}</span>
-            </button>
-          );
-        })}
+        <div className="grow">
+          <div className="tile-row">
+            {tiles.map(item => {
+              const on = detail === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`tile${on ? " on" : ""}`}
+                  aria-pressed={on}
+                  onClick={() => setDetail(d => (d === item.key ? null : item.key))}
+                >
+                  <span className="t-label">{item.label}</span>
+                  <span className="t-value">{r1(item.value)}</span>
+                  <span className="t-sub">{on ? "닫기" : "종목 그래프"}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="faint xs mt12">R = SBI/2 + SMI/2 · SBI/SMI 탭하여 구성 종목 확인</div>
+        </div>
       </div>
 
       {detail === "sbi" && (

@@ -33,6 +33,12 @@ const athleticFields = [
 
 const PREFILL_HINT = "최근 측정값이 미리 채워져 있어요";
 
+const TABS: { key: Section; label: string }[] = [
+  { key: "body", label: "신체 데이터" },
+  { key: "athletic", label: "운동능력 데이터" },
+  { key: "practical", label: "실전 데이터" },
+];
+
 export default function InputPage() {
   const { db, user, addSnapshot } = useStore();
   const player = db.players.find(p => p.id === user?.playerId)!;
@@ -90,15 +96,24 @@ export default function InputPage() {
         desc="측정한 데이터를 입력하면 새 측정 기록으로 저장되고, 능력치·성장 그래프에 즉시 반영됩니다."
       />
 
-      <div className="tabs">
-        <button className={section === "body" ? "on" : ""} onClick={() => setSection("body")}>신체 데이터</button>
-        <button className={section === "athletic" ? "on" : ""} onClick={() => setSection("athletic")}>운동능력 데이터</button>
-        <button className={section === "practical" ? "on" : ""} onClick={() => setSection("practical")}>실전 데이터</button>
+      <div className="tabs" role="tablist">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={section === t.key}
+            className={section === t.key ? "on" : ""}
+            onClick={() => setSection(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       <form onSubmit={submit}>
         {section === "body" && (
-          <div className="card">
+          <div className="panel">
             <div className="card-head">
               <h3>신체 데이터</h3>
               <span className="meta">{PREFILL_HINT}</span>
@@ -123,7 +138,7 @@ export default function InputPage() {
         )}
 
         {section === "athletic" && (
-          <div className="card">
+          <div className="panel">
             <div className="card-head">
               <h3>운동능력 데이터</h3>
               <span className="meta">{PREFILL_HINT}</span>
@@ -140,10 +155,10 @@ export default function InputPage() {
         )}
 
         {section === "practical" && (
-          <div className="card">
+          <div className="panel">
             <div className="card-head">
-              <h3>실전 데이터 <span className="sub">({practical.kind} 기준)</span></h3>
-              <span className="meta">{PREFILL_HINT}</span>
+              <h3>실전 데이터</h3>
+              <span className="meta">{practical.kind} 기준 · {PREFILL_HINT}</span>
             </div>
             <div className="form-grid">
               <div className="field">

@@ -2,7 +2,9 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { evaluatePlayer } from "../../lib/gpe";
-import { Empty, GradeBadge, Medal, PageHead, Seg } from "../../components/ui";
+import type { GpeResult } from "../../lib/gpe";
+import { Avatar, Empty, GradeBadge, Medal, PageHead, Seg } from "../../components/ui";
+import "../../styles/coach.css";
 
 type SortKey = "total" | "body" | "athletic" | "practical";
 
@@ -14,6 +16,9 @@ const labels: Record<SortKey, string> = {
 };
 
 const SORT_KEYS = Object.keys(labels) as SortKey[];
+
+const scoreOf = (r: GpeResult, k: SortKey) => (k === "total" ? r.total : r[k].score);
+const gradeOf = (r: GpeResult, k: SortKey) => (k === "total" ? r.totalGrade : r[k].grade);
 
 export default function CoachRankingPage() {
   const { db, user } = useStore();
@@ -27,9 +32,7 @@ export default function CoachRankingPage() {
   const rows = useMemo(() => {
     const filtered = posFilter === "전체" ? players : players.filter(p => p.position === posFilter);
     const evaluated = filtered.map(p => ({ p, r: evaluatePlayer(p) }));
-    const val = (x: (typeof evaluated)[0]) =>
-      sortKey === "total" ? x.r.total : x.r[sortKey].score;
-    return evaluated.sort((a, b) => val(b) - val(a));
+    return evaluated.sort((a, b) => scoreOf(b.r, sortKey) - scoreOf(a.r, sortKey));
   }, [players, sortKey, posFilter]);
 
   return (
@@ -57,49 +60,70 @@ export default function CoachRankingPage() {
         </div>
       </div>
 
-      <div className="card">
-        {rows.length === 0 ? (
+      {rows.length === 0 ? (
+        <div className="panel">
           <Empty>해당 포지션에 선수가 없습니다.</Empty>
-        ) : (
-          <div className="tbl-wrap">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>순위</th>
-                  <th>선수</th>
-                  <th>포지션</th>
-                  <th>학년</th>
-                  {SORT_KEYS.map(k => (
-                    <th key={k} className={`num${sortKey === k ? " sorted" : ""}`}>{labels[k]}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(({ p, r }, i) => (
-                  <tr key={p.id} className="clickable" onClick={() => nav(`/c/players/${p.id}`)}>
-                    <td><Medal rank={i + 1} /></td>
-                    <td className="name">{p.name}</td>
-                    <td>{p.position}</td>
-                    <td>{p.grade}학년</td>
-                    {SORT_KEYS.map(k => {
-                      const score = k === "total" ? r.total : r[k].score;
-                      const grade = k === "total" ? r.totalGrade : r[k].grade;
-                      return (
+        </div>
+      ) : (
+        <>
+          <div className="grid cols-3 top3">
+            {rows.slice(0, 3).map(({ p, r }, i) => (
+              <div className="panel sub" key={p.id}>
+                <div className="flex gap12">
+                  <Medal rank={i + 1} />
+                  <Avatar name={p.name} />
+                  <div className="grow">
+                    <div className="strong">{p.name}</div>
+                    <div className="faint xs">{p.position} · {p.grade}학년</div>
+                  </div>
+                  <span className="display sm">{scoreOf(r, sortKey)}</span>
+                  <GradeBadge grade={gradeOf(r, sortKey)} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="panel mt16">
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th className="rank-cell">순위</th>
+                    <th>선수</th>
+                    {SORT_KEYS.map(k => (
+                      <th key={k} className={`num${sortKey === k ? " sorted" : ""}`}>{labels[k]}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(({ p, r }, i) => (
+                    <tr key={p.id} className="clickable" onClick={() => nav(`/c/players/${p.id}`)}>
+                      <td><Medal rank={i + 1} /></td>
+                      <td>
+                        <div className="who">
+                          <Avatar name={p.name} size="sm" />
+                          <div className="two">
+                            <b>{p.name}</b>
+                            <small>{p.position} · {p.grade}학년</small>
+                          </div>
+                        </div>
+                      </td>
+                      {SORT_KEYS.map(k => (
                         <td key={k} className={`num${sortKey === k ? "" : " faded"}`}>
                           <span className="flex gap8">
-                            {score}
-                            <GradeBadge grade={grade} size={20} />
+                            {sortKey === k ? <b>{scoreOf(r, k)}</b> : scoreOf(r, k)}
+                            <GradeBadge grade={gradeOf(r, k)} size={20} />
                           </span>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </>
   );
 }

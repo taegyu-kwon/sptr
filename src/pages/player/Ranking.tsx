@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { useStore } from "../../lib/store";
 import { evaluatePlayer } from "../../lib/gpe";
-import { GradeBadge, Medal, PageHead, Seg } from "../../components/ui";
+import { Avatar, Cells, Cell, GradeBadge, Medal, PageHead, Seg } from "../../components/ui";
+import "../../styles/player.css";
 
 type SortKey = "total" | "athletic" | "practical";
 
@@ -23,7 +24,19 @@ export default function RankingPage() {
     return evaluated.sort((a, b) => val(b) - val(a));
   }, [teamPlayers, sortKey]);
 
+  const myIndex = rows.findIndex(x => x.p.id === user?.playerId);
+  const mine = myIndex >= 0 ? rows[myIndex] : null;
+  const sortLabel = SORT_OPTIONS.find(o => o.value === sortKey)?.label ?? "";
+
   const colCls = (key: SortKey) => `num${sortKey === key ? " sorted" : " faded"}`;
+  const scoreCell = (key: SortKey, score: number, grade: Parameters<typeof GradeBadge>[0]["grade"]) => (
+    <td className={colCls(key)}>
+      <span className="flex gap8">
+        {sortKey === key ? <b>{score}</b> : score}
+        <GradeBadge grade={grade} size={20} />
+      </span>
+    </td>
+  );
 
   return (
     <>
@@ -36,15 +49,32 @@ export default function RankingPage() {
         <Seg value={sortKey} onChange={setSortKey} options={SORT_OPTIONS} />
       </div>
 
-      <div className="card">
+      {mine && (
+        <div className="panel tint">
+          <div className="rank-hero">
+            <div>
+              <span className="eyebrow">내 {sortLabel}</span>
+              <div className="display brand">
+                {myIndex + 1}위
+                <span className="unit">/ {rows.length}명</span>
+              </div>
+            </div>
+            <Cells n={3}>
+              <Cell label="종합" value={mine.r.total} grade={mine.r.totalGrade} size="md" />
+              <Cell label="운동능력" value={mine.r.athletic.score} grade={mine.r.athletic.grade} size="md" />
+              <Cell label="실전" value={mine.r.practical.score} grade={mine.r.practical.grade} size="md" />
+            </Cells>
+          </div>
+        </div>
+      )}
+
+      <div className="panel">
         <div className="tbl-wrap">
           <table className="tbl">
             <thead>
               <tr>
-                <th>순위</th>
+                <th className="rank-cell">순위</th>
                 <th>선수</th>
-                <th>포지션</th>
-                <th>학년</th>
                 <th className={colCls("total")}>종합</th>
                 <th className={colCls("athletic")}>운동능력</th>
                 <th className={colCls("practical")}>실전</th>
@@ -55,24 +85,19 @@ export default function RankingPage() {
                 const me = p.id === user?.playerId;
                 return (
                   <tr key={p.id} className={me ? "me" : ""}>
-                    <td><Medal rank={i + 1} /></td>
-                    <td className="name">
-                      <span className="flex gap8">
-                        {p.name}
-                        {me && <span className="pill brand">나</span>}
+                    <td className="rank-cell"><Medal rank={i + 1} /></td>
+                    <td>
+                      <span className="who">
+                        <Avatar name={p.name} size="sm" tone={me ? "brand" : undefined} />
+                        <span className="two">
+                          <span className="name">{p.name}</span>
+                          <small>{p.position} · {p.grade}학년</small>
+                        </span>
                       </span>
                     </td>
-                    <td>{p.position}</td>
-                    <td>{p.grade}학년</td>
-                    <td className={colCls("total")}>
-                      <span className="flex gap8">{r.total}<GradeBadge grade={r.totalGrade} size={20} /></span>
-                    </td>
-                    <td className={colCls("athletic")}>
-                      <span className="flex gap8">{r.athletic.score}<GradeBadge grade={r.athletic.grade} size={20} /></span>
-                    </td>
-                    <td className={colCls("practical")}>
-                      <span className="flex gap8">{r.practical.score}<GradeBadge grade={r.practical.grade} size={20} /></span>
-                    </td>
+                    {scoreCell("total", r.total, r.totalGrade)}
+                    {scoreCell("athletic", r.athletic.score, r.athletic.grade)}
+                    {scoreCell("practical", r.practical.score, r.practical.grade)}
                   </tr>
                 );
               })}

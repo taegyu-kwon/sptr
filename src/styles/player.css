@@ -1,13 +1,41 @@
 /* ================================================================
    선수 화면 전용 스타일 — 토큰만 사용.
-   공통 시트(styles.css)에 이미 있는 클래스는 여기서 다시 정의하지 않는다.
+   공통 클래스(styles.css)는 재정의하지 않고, 페이지에서만 쓰는 조각을 둔다.
    ================================================================ */
 
-/* 부상 리스크 요인 목록 (불릿 유지, 기본 ul 여백만 정돈) */
-.risk-factors { margin: 12px 0 0; padding-left: 18px; }
-.risk-factors li + li { margin-top: 4px; }
+/* .split 안에 패널 둘을 나란히 둘 때 두 번째 패널에 붙는 세로 여백을 없앤다
+   (styles.css 는 .grid 안에서만 이 여백을 지운다 — .split 은 빠져 있음) */
+.split > .panel + .panel { margin-top: 0; }
 
-/* 다가오는 일정 — 왼쪽 날짜 블록 (월 / 일 두 줄) */
+/* ---------- 선수 리포트 히어로 ---------- */
+.report-head { position: relative; margin-bottom: 28px; }
+.report-body { position: relative; }
+.hero-lead { display: flex; align-items: center; gap: 22px; min-width: 0; }
+.hero-summary { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; min-width: 0; }
+.hero-summary .spark { margin-top: 2px; }
+@media (max-width: 760px) {
+  .report-head { margin-bottom: 22px; }
+  .hero-lead { gap: 18px; }
+}
+
+/* 부상 리스크 요인 목록 */
+.risk-factors { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.55; color: var(--fg-2); }
+.risk-factors li + li { margin-top: 6px; }
+
+/* ---------- 성장 그래프 ---------- */
+.chart-kpi { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chart-legend .sw-brand { background: var(--brand); }
+.chart-legend .sw-2 { background: var(--chart-2); }
+.chart-legend .sw-3 { background: var(--chart-3); }
+.chart-legend .sw-4 { background: var(--chart-4); }
+.chart-legend .sw-5 { background: var(--chart-5); }
+
+/* ---------- 팀 내 순위 히어로 ---------- */
+.rank-hero { display: flex; align-items: center; gap: 28px 44px; flex-wrap: wrap; }
+.rank-hero .cells { flex: 1 1 340px; min-width: 0; }
+.rank-hero .display { margin-top: 10px; }
+
+/* ---------- 다가오는 일정 — 왼쪽 날짜 블록 (월 / 일 두 줄) ---------- */
 .date-block { width: 44px; flex-shrink: 0; text-align: center; line-height: 1.1; }
 .date-block .m { display: block; font-size: 11.5px; font-weight: 500; color: var(--fg-3); }
 .date-block .d {

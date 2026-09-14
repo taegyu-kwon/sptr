@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { evaluatePlayerSbi, r1 } from "../../lib/sbi";
-import { Empty, Medal, PageHead, Seg } from "../../components/ui";
+import { Avatar, Cell, Cells, Empty, Medal, PageHead, Seg } from "../../components/ui";
 import "../../styles/coach.css";
 
 type SortKey = "finalR" | "sbi" | "smi" | "name";
@@ -31,6 +31,13 @@ export default function CoachSbiListPage() {
     });
   }, [db.players, user?.teamId, sortKey]);
 
+  const measured = rows.filter(x => x.idx !== null);
+  const avgR = measured.length ? measured.reduce((s, x) => s + (x.idx?.finalR ?? 0), 0) / measured.length : 0;
+  const best = measured.reduce<(typeof measured)[number] | null>(
+    (top, x) => (!top || (x.idx?.finalR ?? -1) > (top.idx?.finalR ?? -1) ? x : top),
+    null
+  );
+
   const sorted = (k: SortKey) => (sortKey === k ? " sorted" : "");
 
   return (
@@ -46,7 +53,19 @@ export default function CoachSbiListPage() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="panel tint">
+        <Cells n={3}>
+          <Cell label="팀 평균 최종 R" value={measured.length ? r1(avgR) : "-"} sub="측정 완료 선수 기준" />
+          <Cell
+            label="최고 R"
+            value={best?.idx ? r1(best.idx.finalR) : "-"}
+            sub={best ? `${best.p.name} · ${best.p.position}` : "측정 데이터 없음"}
+          />
+          <Cell label="측정 완료" value={measured.length} unit={`/ ${rows.length}명`} />
+        </Cells>
+      </div>
+
+      <div className="panel">
         {rows.length === 0 ? (
           <Empty>등록된 선수가 없습니다.</Empty>
         ) : (
@@ -54,10 +73,8 @@ export default function CoachSbiListPage() {
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>순위</th>
+                  <th className="rank-cell">순위</th>
                   <th className={sorted("name").trim()}>선수</th>
-                  <th>포지션</th>
-                  <th>학년</th>
                   <th className={`num${sorted("sbi")}`}>SBI</th>
                   <th className={`num${sorted("smi")}`}>SMI</th>
                   <th className={`num${sorted("finalR")}`}>최종 R</th>
@@ -68,14 +85,20 @@ export default function CoachSbiListPage() {
                   <tr key={p.id}>
                     <td><Medal rank={i + 1} /></td>
                     <td>
-                      <button type="button" className="link" onClick={() => nav(`/c/sbi/${p.id}`)}>
-                        {p.name}
-                      </button>
+                      <div className="who">
+                        <Avatar name={p.name} size="sm" />
+                        <div className="two">
+                          <span>
+                            <button type="button" className="link" onClick={() => nav(`/c/sbi/${p.id}`)}>
+                              {p.name}
+                            </button>
+                          </span>
+                          <small>{p.position} · {p.grade}학년</small>
+                        </div>
+                      </div>
                     </td>
-                    <td>{p.position}</td>
-                    <td>{p.grade}학년</td>
-                    <td className="num">{idx ? r1(idx.sbi) : "-"}</td>
-                    <td className="num">{idx ? r1(idx.smi) : "-"}</td>
+                    <td className={`num${sortKey === "sbi" ? "" : " faded"}`}>{idx ? r1(idx.sbi) : "-"}</td>
+                    <td className={`num${sortKey === "smi" ? "" : " faded"}`}>{idx ? r1(idx.smi) : "-"}</td>
                     <td className="num">
                       <span className="brand-text strong">{idx ? r1(idx.finalR) : "-"}</span>
                     </td>
