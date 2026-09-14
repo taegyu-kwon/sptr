@@ -49,12 +49,12 @@ export default function PlayerSbiCard({ player }: { player: Player }) {
                 >
                   <span className="t-label">{item.label}</span>
                   <span className="t-value">{r1(item.value)}</span>
-                  <span className="t-sub">{on ? "닫기" : "종목 그래프"}</span>
+                  <span className="t-sub">{on ? "닫기" : "구성 종목 보기"}</span>
                 </button>
               );
             })}
           </div>
-          <div className="faint xs mt12">R = SBI/2 + SMI/2 · SBI/SMI 탭하여 구성 종목 확인</div>
+          <div className="faint xs mt12">R = SBI/2 + SMI/2</div>
         </div>
       </div>
 

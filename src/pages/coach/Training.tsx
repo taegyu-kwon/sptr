@@ -70,7 +70,7 @@ export default function TrainingPage() {
             <div className={`day${items.length === 0 ? " empty" : ""}`} key={d}>
               <div className="day-name">
                 {d}
-                <small>{items.length > 0 ? `${items.length}건` : "휴식"}</small>
+                <small>{items.length > 0 ? `${items.length}건` : "없음"}</small>
               </div>
               <div className="sessions">
                 {items.map(t => (

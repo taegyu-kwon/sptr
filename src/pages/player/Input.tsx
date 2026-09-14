@@ -31,7 +31,7 @@ const athleticFields = [
   { key: "plankMax", label: "플랭크 max (초)", step: 1 },
 ] as const;
 
-const PREFILL_HINT = "최근 측정값이 미리 채워져 있어요";
+const PREFILL_HINT = "최근 측정값이 입력되어 있습니다";
 
 const TABS: { key: Section; label: string }[] = [
   { key: "body", label: "신체 데이터" },
@@ -183,7 +183,7 @@ export default function InputPage() {
 
         <div className="flex wrap gap12 mt16">
           <button className="btn" type="submit">측정 기록 저장</button>
-          {saved && <Notice kind="ok">저장되었습니다. 능력치와 그래프에 반영됐어요.</Notice>}
+          {saved && <Notice kind="ok">저장되었습니다. 능력치와 성장 그래프에 반영됩니다.</Notice>}
         </div>
       </form>
     </>

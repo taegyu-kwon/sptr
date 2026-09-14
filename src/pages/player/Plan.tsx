@@ -26,13 +26,13 @@ export default function PlanPage() {
     <>
       <PageHead title="팀 플랜" desc="이번 주 훈련 일정, 예정된 시합, 코칭스태프가 구성한 예상 라인업입니다." />
 
-      <Section title="주간 훈련 일정" meta={`이번 주 ${training.length}개 세션`}>
+      <Section title="주간 훈련 일정" meta={`이번 주 ${training.length}건`}>
         <div className="week">
           {week.map(({ day, sessions }) => (
             <div className={`day${sessions.length === 0 ? " empty" : ""}`} key={day}>
               <div className="day-name">
                 {day}
-                <small>{sessions.length > 0 ? `${sessions.length}건` : "휴식"}</small>
+                <small>{sessions.length > 0 ? `${sessions.length}건` : "없음"}</small>
               </div>
               <div className="sessions">
                 {sessions.map(t => (
@@ -84,7 +84,6 @@ export default function PlanPage() {
           <div className="panel">
             <div className="card-head">
               <h3>예상 라인업</h3>
-              <span className="meta">코칭스태프 구성</span>
             </div>
             <div className="tbl-wrap">
               <table className="tbl compact">

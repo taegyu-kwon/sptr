@@ -251,13 +251,13 @@ export default function SbiPage() {
                   >
                     <span className="t-label">{item.label}</span>
                     <span className="t-value">{item.value === null ? "-" : r1(item.value)}</span>
-                    <span className="t-sub">{on ? "닫기" : "종목 그래프"}</span>
+                    <span className="t-sub">{on ? "닫기" : "구성 종목 보기"}</span>
                   </button>
                 );
               })}
             </div>
             <div className="faint xs mt12">
-              U15 · C = 5.1 · 팔꿈치 폄 Method 2 · SBI/SMI 탭하여 구성 종목 확인
+              U15 기준 · C = 5.1 · 팔꿈치 폄 Method 2
             </div>
             <div className="faint xs mono mt4">R = SBI/2 + SMI/2</div>
           </div>
@@ -265,7 +265,7 @@ export default function SbiPage() {
 
         {result.warn && (
           <Notice kind="warn" className="mt16">
-            <b>구속 버퍼 경고</b> — 스트렝스/역학 점수는 우수하나 구속이 부족합니다. 체중 부족 또는 순발력(파워 전환) 부족을 점검해보세요.
+            <b>구속 버퍼 경고</b> — 스트렝스/역학 점수는 우수하나 구속이 부족합니다. 체중 부족 또는 순발력(파워 전환) 부족 여부를 점검해야 합니다.
           </Notice>
         )}
       </div>
@@ -328,13 +328,12 @@ export default function SbiPage() {
       )}
 
       {/* ---------- 측정 입력 ---------- */}
-      <Section title="측정 입력" meta="값을 바꾸면 위 결과가 바로 갱신됩니다">
+      <Section title="측정 입력" meta="입력하는 즉시 계산됩니다">
         <div className="panel">
           <div className="columns n3">
             <div className="col">
               <div className="col-head">
                 <h4>기본 정보</h4>
-                <span className="faint xs">U15 · 신체 · 구속 · 점프</span>
               </div>
               <div className="form-grid cols-2">
                 <div className="field">
@@ -371,7 +370,6 @@ export default function SbiPage() {
             <div className="col">
               <div className="col-head">
                 <h4>SBI — 3대 스트렝스</h4>
-                <span className="faint xs">덤벨 가중 반복</span>
               </div>
               <div className="form-grid cols-1">
                 <div className="field">
@@ -396,7 +394,6 @@ export default function SbiPage() {
             <div className="col">
               <div className="col-head">
                 <h4>SMI — 역학 검사</h4>
-                <span className="faint xs">제동 · 가속 · 팔꿈치 M2</span>
               </div>
               <div className="form-grid cols-1">
                 <div className="field">

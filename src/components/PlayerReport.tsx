@@ -43,7 +43,7 @@ export default function PlayerReport({
             <ScoreRing value={r.total} size={148} stroke={11} grade={r.totalGrade} label="종합" />
             <div className="hero-summary">
               <span className="eyebrow">종합 점수</span>
-              {prev && <Delta value={r.total - prev.total} vs="지난 측정" />}
+              {prev && <Delta value={r.total - prev.total} vs="직전 대비" />}
               <Sparkline values={history} width={120} height={32} />
               <span className="faint xs">측정 {records.length}회 · 최근 {fmtDate(snap.date)}</span>
             </div>
@@ -57,7 +57,7 @@ export default function PlayerReport({
                 value={c.res.score}
                 grade={c.res.grade}
                 meter={c.res.score}
-                sub={c.prevScore !== undefined && <Delta value={c.res.score - c.prevScore} vs="지난 측정" />}
+                sub={c.prevScore !== undefined && <Delta value={c.res.score - c.prevScore} vs="직전 대비" />}
               />
             ))}
           </Cells>
@@ -91,7 +91,7 @@ export default function PlayerReport({
           <div className="panel">
             <div className="card-head">
               <h3>훈련 우선순위</h3>
-              <span className="meta">가장 낮은 지표부터</span>
+              <span className="meta">분야별 최저 지표</span>
             </div>
             <div className="rows">
               {r.trainingPriorities.map(t => (

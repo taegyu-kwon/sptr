@@ -71,7 +71,7 @@ function Kpi({ value, unit, delta, deltaUnit, digits, invert }: {
         {value}
         <span className="unit">{unit}</span>
       </span>
-      <Delta value={delta} unit={deltaUnit} vs="첫 측정" digits={digits} invert={invert} />
+      <Delta value={delta} unit={deltaUnit} vs="첫 측정 대비" digits={digits} invert={invert} />
     </>
   );
 }

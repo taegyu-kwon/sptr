@@ -82,7 +82,7 @@ export default function StatsPage() {
         </div>
       </Section>
 
-      <Section title="2026 시즌" meta={`팀 경기 ${season.games}회 기준 · ${isPitcher ? "투수" : "야수"} 기록`}>
+      <Section title="2026 시즌" meta={`팀 ${season.games}경기 · ${isPitcher ? "투수" : "야수"} 기록`}>
         <div className="panel sub">
           <Cells n={5}>
             {seasonCells.map(c => (

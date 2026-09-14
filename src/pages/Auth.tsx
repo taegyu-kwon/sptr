@@ -50,22 +50,20 @@ export default function Auth() {
         </div>
         <div>
           <h1 className="big">SPTR<i>.</i></h1>
-          <p className="tag">유소년 야구 선수의 성장을 숫자로 기록하고, 팀과 함께 읽는 성장 관리 플랫폼.</p>
+          <p className="tag">계약된 팀 전용 유소년 야구 성장 관리 플랫폼</p>
         </div>
         <div className="foot">
-          <span>계약 팀 전용</span>
-          <span>개별 가입 코드</span>
-          <span>U15 · 중학교</span>
+          <span>© 2026 SPTR</span>
         </div>
       </aside>
 
       <div className="auth-main">
         <div className="auth-card">
-          <h2 className="auth-title">{mode === "login" ? "다시 오셨군요" : "팀에 합류하기"}</h2>
+          <h2 className="auth-title">{mode === "login" ? "로그인" : "회원가입"}</h2>
           <p className="auth-sub">
             {mode === "login"
-              ? "이메일과 비밀번호로 로그인하세요."
-              : "팀에서 받은 개별 가입 코드가 있어야 가입할 수 있어요."}
+              ? "이메일과 비밀번호를 입력하세요."
+              : "팀에서 받은 개별 가입 코드가 필요합니다."}
           </p>
 
           <form className="auth-form" onSubmit={submit}>
@@ -133,7 +131,7 @@ export default function Auth() {
           </form>
 
           <div className="auth-demo">
-            <div><b className="strong">데모 계정</b> · 누르면 자동으로 채워져요 (비밀번호 demo1234)</div>
+            <div><b className="strong">데모 계정</b> · 클릭하면 자동 입력 (비밀번호 demo1234)</div>
             <div className="row">
               <span className="lbl">선수/학부모</span>
               <button type="button" className="chip" onClick={() => fill("player@sptr.demo")}>player@sptr.demo</button>
