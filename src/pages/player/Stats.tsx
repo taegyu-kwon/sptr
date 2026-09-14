@@ -55,7 +55,11 @@ export default function StatsPage() {
           <div>
             <div className="profile-name">{player.name}</div>
             <div className="profile-meta">
-              {team?.name} · {player.position} · {player.grade}학년
+              <span>{team?.name}</span>
+              <span className="sep" />
+              <span>{player.position}</span>
+              <span className="sep" />
+              <span>{player.grade}학년</span>
             </div>
           </div>
         </div>

@@ -1,0 +1,21 @@
+/* ================================================================
+   SBI / SMI — 계산기 페이지 · 선수 SBI 카드 전용 스타일
+   토큰만 쓰고, styles.css에 있는 공용 클래스는 다시 정의하지 않는다.
+   ================================================================ */
+
+/* 레이더 차트 — 카드 폭에 맞춰 축소, 가운데 정렬 */
+.radar { display: block; width: 100%; max-width: 420px; height: auto; margin: 0 auto; }
+
+/* 결과 카드 안내 문구 — 가운데 정렬 */
+.sbi-note { text-align: center; margin-top: 12px; }
+
+/* SMI 환산 공식 <details> — summary를 링크 버튼처럼 */
+.sbi-formula-details summary {
+  display: inline-block; list-style: none; cursor: pointer;
+  color: var(--fg-3); font-size: 12.5px;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.sbi-formula-details summary::-webkit-details-marker { display: none; }
+.sbi-formula-details summary:hover { color: var(--fg-2); }
+.sbi-formula-details > div { margin-top: 8px; line-height: 1.9; }
+.sbi-formula-details b { color: var(--fg-2); }

@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
+import { BrandMark } from "../components/icons";
+import { Notice, Seg } from "../components/ui";
 
 export default function Auth() {
   const { login, signup, resetDemo } = useStore();
@@ -42,21 +44,28 @@ export default function Auth() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div>
-          <div className="brand-name" style={{ fontSize: 22, letterSpacing: 4 }}>SPTR</div>
-          <div className="muted small" style={{ marginTop: 2 }}>계약된 팀 전용 유소년 야구 성장 관리 플랫폼</div>
+        <div className="auth-brand">
+          <BrandMark />
+          <div className="brand-name">SPTR</div>
         </div>
 
-        <div className="auth-tabs">
-          <button className={mode === "login" ? "on" : ""} onClick={() => { setMode("login"); setError(null); }}>
-            로그인
-          </button>
-          <button className={mode === "signup" ? "on" : ""} onClick={() => { setMode("signup"); setError(null); }}>
-            회원가입
-          </button>
-        </div>
+        <h1 className="auth-title">{mode === "login" ? "다시 오셨군요" : "팀에 합류하기"}</h1>
+        <p className="auth-sub">
+          {mode === "login"
+            ? "계약된 팀 전용 유소년 야구 성장 관리 플랫폼"
+            : "팀에서 받은 개별 가입 코드가 있어야 가입할 수 있어요."}
+        </p>
 
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <form className="auth-form" onSubmit={submit}>
+          <Seg
+            value={mode}
+            onChange={m => { setMode(m); setError(null); }}
+            options={[
+              { value: "login", label: "로그인" },
+              { value: "signup", label: "회원가입" },
+            ]}
+          />
+
           {mode === "signup" && (
             <>
               <div className="field">
@@ -66,7 +75,7 @@ export default function Auth() {
               <div className="field">
                 <label>본인인증</label>
                 {verified ? (
-                  <div className="ok-box">본인인증이 완료되었습니다.</div>
+                  <Notice kind="ok">본인인증이 완료되었습니다.</Notice>
                 ) : (
                   <button
                     type="button"
@@ -97,33 +106,39 @@ export default function Auth() {
           )}
           <div className="field">
             <label>이메일</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" />
           </div>
           <div className="field">
             <label>비밀번호</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required />
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
           </div>
 
-          {error && <div className="error-box">{error}</div>}
+          {error && <Notice kind="error">{error}</Notice>}
 
-          <button className="btn" type="submit">
+          <button className="btn lg block" type="submit">
             {mode === "login" ? "로그인" : "가입하기"}
           </button>
         </form>
 
-        <div className="demo-hint">
-          <b>데모 계정</b> (클릭하면 자동 입력, 비밀번호 demo1234)
-          <br />
-          선수/학부모: <code onClick={() => fill("player@sptr.demo")}>player@sptr.demo</code>
-          {"  "}코칭스태프: <code onClick={() => fill("coach@sptr.demo")}>coach@sptr.demo</code>
-          <br />
-          <b>데모 가입 코드</b>: <code onClick={() => setCode("SPTR-PLAYER-01")}>SPTR-PLAYER-01</code>{" "}
-          <code onClick={() => setCode("SPTR-PLAYER-02")}>SPTR-PLAYER-02</code>{" "}
-          <code onClick={() => setCode("SPTR-COACH-01")}>SPTR-COACH-01</code>
-          <br />
-          <span style={{ cursor: "pointer", textDecoration: "underline" }} onClick={resetDemo}>
-            데모 데이터 초기화
-          </span>
+        <div className="auth-demo">
+          <div><b className="strong">데모 계정</b> · 누르면 자동으로 채워져요 (비밀번호 demo1234)</div>
+          <div className="row">
+            <span className="lbl">선수/학부모</span>
+            <button type="button" className="chip" onClick={() => fill("player@sptr.demo")}>player@sptr.demo</button>
+          </div>
+          <div className="row">
+            <span className="lbl">코칭스태프</span>
+            <button type="button" className="chip" onClick={() => fill("coach@sptr.demo")}>coach@sptr.demo</button>
+          </div>
+          <div className="row">
+            <span className="lbl">가입 코드</span>
+            {["SPTR-PLAYER-01", "SPTR-PLAYER-02", "SPTR-COACH-01"].map(c => (
+              <button type="button" className="chip" key={c} onClick={() => { setMode("signup"); setCode(c); }}>{c}</button>
+            ))}
+          </div>
+        </div>
+        <div className="auth-foot">
+          <button type="button" className="link-btn" onClick={resetDemo}>데모 데이터 초기화</button>
         </div>
       </div>
     </div>

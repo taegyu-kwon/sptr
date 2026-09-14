@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
+import "../styles/sbi.css";
 import { useStore } from "../lib/store";
 import { latest } from "../lib/gpe";
-import { ScoreBar } from "../components/ui";
-
-const HINT = "rgba(210, 153, 34, 0.55)"; // 기존 노랑(#d29922)을 흐리게
+import { ScoreBar, PageHead, Notice } from "../components/ui";
 
 const clamp100 = (v: number) => Math.max(0, Math.min(100, v));
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -70,27 +69,27 @@ function Radar({ values }: { values: (number | null)[] }) {
   };
   const hasAll = values.every(v => v !== null);
   return (
-    <svg width="420" height="380" viewBox="0 0 420 380" style={{ display: "block", margin: "0 auto", maxWidth: "100%" }}>
+    <svg className="radar" width="420" height="380" viewBox="0 0 420 380" aria-hidden="true">
       {[0.25, 0.5, 0.75, 1].map(lv => (
         <polygon
           key={lv}
           points={Array.from({ length: 6 }, (_, i) => pt(i, lv).join(",")).join(" ")}
-          fill="none" stroke="#262629" strokeWidth={1}
+          fill="none" stroke="var(--line-2)" strokeWidth={1}
         />
       ))}
       {Array.from({ length: 6 }, (_, i) => {
         const p = pt(i, 1);
-        return <line key={i} x1={CX} y1={CY} x2={p[0]} y2={p[1]} stroke="#262629" strokeWidth={1} />;
+        return <line key={i} x1={CX} y1={CY} x2={p[0]} y2={p[1]} stroke="var(--line-2)" strokeWidth={1} />;
       })}
       {hasAll && (
         <>
           <polygon
             points={values.map((v, i) => pt(i, clamp100(v!) / 100).join(",")).join(" ")}
-            fill="rgba(47,129,247,0.20)" stroke="#2f81f7" strokeWidth={2}
+            fill="var(--brand-soft)" stroke="var(--brand)" strokeWidth={2}
           />
           {values.map((v, i) => {
             const p = pt(i, clamp100(v!) / 100);
-            return <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="#2f81f7" />;
+            return <circle key={i} cx={p[0]} cy={p[1]} r={3.5} fill="var(--brand)" />;
           })}
         </>
       )}
@@ -98,10 +97,10 @@ function Radar({ values }: { values: (number | null)[] }) {
         const p = pt(i, 1.2);
         return (
           <g key={label}>
-            <text x={p[0]} y={p[1] - 5} textAnchor="middle" fill="#8e8e94" fontSize={11.5} fontWeight={600} fontFamily="inherit">
+            <text x={p[0]} y={p[1] - 5} textAnchor="middle" fill="var(--fg-3)" fontSize={11} fontWeight={600} fontFamily="inherit">
               {label}
             </text>
-            <text x={p[0]} y={p[1] + 12} textAnchor="middle" fill="#ececee" fontSize={13} fontWeight={800} fontFamily="inherit">
+            <text x={p[0]} y={p[1] + 12} textAnchor="middle" fill="var(--fg)" fontSize={13} fontWeight={700} fontFamily="inherit">
               {values[i] === null ? "-" : Math.round(clamp100(values[i]!))}
             </text>
           </g>
@@ -201,18 +200,27 @@ export default function SbiPage() {
     return `양손 총 ${Math.round(result.w * load.dead)}kg (한 손당 ${Math.round((result.w * load.dead) / 2)}kg)`;
   };
 
+  const tiles = [
+    { key: "sbi" as const, label: "SBI", value: result.sbi },
+    { key: "smi" as const, label: "SMI", value: result.smi },
+  ];
+
   return (
     <>
-      <h1 className="page-title">SBI / SMI 계산기</h1>
-      <p className="page-desc">
-        U15 중학교 기준 — SBI(버퍼 인덱스)와 SMI(역학 인덱스, 팔꿈치 폄 속도 Method 2)를 함께 산출합니다. 최종 점수 R = SBI/2 + SMI/2
-      </p>
+      <PageHead
+        title="SBI / SMI 계산기"
+        desc="U15 중학교 기준 — SBI(버퍼 인덱스)와 SMI(역학 인덱스, 팔꿈치 폄 속도 Method 2)를 함께 산출합니다. 최종 점수 R = SBI/2 + SMI/2"
+      />
 
       <div className="grid cols-2">
+        {/* ---------- 입력 ---------- */}
         <div>
           <div className="card">
-            <h3>기본 정보 · 측정 기록</h3>
-            <div className="form-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+            <div className="card-head">
+              <h3>기본 정보 · 측정 기록</h3>
+              <span className="meta">U15 · 신체 · 구속 · 점프</span>
+            </div>
+            <div className="form-grid cols-2">
               <div className="field">
                 <label>학년</label>
                 <select value={grade} onChange={e => setGrade(e.target.value)}>
@@ -244,35 +252,41 @@ export default function SbiPage() {
             </div>
           </div>
 
-          <div className="card mt16">
-            <h3>SBI — 3대 스트렝스 (덤벨 가중 반복 횟수)</h3>
-            <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <div className="card">
+            <div className="card-head">
+              <h3>SBI — 3대 스트렝스</h3>
+              <span className="meta">U15 · 덤벨 가중 반복 횟수</span>
+            </div>
+            <div className="form-grid cols-1">
               <div className="field">
                 <label>스쿼트 (개수)</label>
                 <input type="number" step={1} value={squat} onChange={e => setSquat(e.target.value)} />
-                <span className="small" style={{ color: HINT }}>{loadHint("squat")}</span>
+                <span className="help warn">{loadHint("squat")}</span>
               </div>
               <div className="field">
                 <label>외발 데드리프트 (횟수)</label>
                 <input type="number" step={1} value={dead} onChange={e => setDead(e.target.value)} />
-                <span className="small" style={{ color: HINT }}>{loadHint("dead")}</span>
+                <span className="help warn">{loadHint("dead")}</span>
               </div>
               <div className="field">
                 <label>푸쉬업 (개수)</label>
                 <input type="number" step={1} value={push} onChange={e => setPush(e.target.value)} />
-                <span className="small" style={{ color: HINT }}>{loadHint("push")}</span>
+                <span className="help warn">{loadHint("push")}</span>
               </div>
             </div>
-            <div className="muted small mt8">* 반올림한 무게의 덤벨 사용</div>
+            <div className="faint xs mt12">* 반올림한 무게의 덤벨 사용</div>
           </div>
 
-          <div className="card mt16">
-            <h3>SMI — 역학 검사</h3>
-            <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
+          <div className="card">
+            <div className="card-head">
+              <h3>SMI — 역학 검사</h3>
+              <span className="meta">제동력 · 가속효율 · 팔꿈치 폄 M2</span>
+            </div>
+            <div className="form-grid cols-1">
               <div className="field">
                 <label>제동력 — 3연속 점프 착지거리 (cm)</label>
                 <input type="number" step={1} value={landDist} onChange={e => setLandDist(e.target.value)} />
-                <span className="small muted">
+                <span className="help">
                   투구 디딤발로 최대 3연속 점프, 마지막 착지 2초 버티기
                   {result.brakePct !== null && ` · 신장대비 ${r1(result.brakePct)}%`}
                 </span>
@@ -280,85 +294,60 @@ export default function SbiPage() {
               <div className="field">
                 <label>가속효율 — 하체 고정·상체만 던지기 (m)</label>
                 <input type="number" step={0.1} value={upperOnly} onChange={e => setUpperOnly(e.target.value)} />
-                <span className="small muted">2~3kg 메디신볼</span>
+                <span className="help">2~3kg 메디신볼</span>
               </div>
               <div className="field">
                 <label>가속효율 — 전신 투구폼 던지기 (m)</label>
                 <input type="number" step={0.1} value={fullBody} onChange={e => setFullBody(e.target.value)} />
-                <span className="small muted">
-                  {result.accelPct !== null && `비대칭비율 ${r1(result.accelPct)}%`}
-                </span>
+                {result.accelPct !== null && (
+                  <span className="help">비대칭비율 {r1(result.accelPct)}%</span>
+                )}
               </div>
               <div className="field">
                 <label>팔꿈치 폄 속도 Method 2 — 무릎 꿇고 메디신볼 비거리 (m)</label>
                 <input type="number" step={0.1} value={elbowThrow} onChange={e => setElbowThrow(e.target.value)} />
-                <span className="small muted">1~2kg 메디신볼, 투구하듯 팔꿈치를 펴며 던지기</span>
+                <span className="help">1~2kg 메디신볼, 투구하듯 팔꿈치를 펴며 던지기</span>
               </div>
             </div>
           </div>
         </div>
 
+        {/* ---------- 결과 ---------- */}
         <div>
           <div className="card">
-            <div style={{ textAlign: "center", paddingTop: 4 }}>
-              <div className="muted small" style={{ fontWeight: 700, letterSpacing: 1.5 }}>최종 점수 R</div>
-              <div style={{ fontSize: 48, fontWeight: 800, color: "var(--accent)", lineHeight: 1.1, letterSpacing: -1, marginTop: 4 }}>
-                {result.finalR === null ? "-" : r1(result.finalR)}
-              </div>
-              <div className="muted small" style={{ marginTop: 4 }}>R = SBI/2 + SMI/2</div>
+            <div className="hero-num">
+              <div className="hn-label">최종 점수 R</div>
+              <div className="hn-value">{result.finalR === null ? "-" : r1(result.finalR)}</div>
+              <div className="hn-sub">R = SBI/2 + SMI/2</div>
             </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 10,
-                marginTop: 16,
-                marginBottom: 8,
-                alignItems: "stretch",
-              }}
-            >
-              {([
-                { key: "sbi" as const, label: "SBI", value: result.sbi },
-                { key: "smi" as const, label: "SMI", value: result.smi },
-              ]).map(item => {
+
+            <div className="tile-row mt16">
+              {tiles.map(item => {
                 const on = detail === item.key;
                 return (
                   <button
                     key={item.key}
                     type="button"
+                    className={`tile${on ? " on" : ""}`}
+                    aria-pressed={on}
                     onClick={() => setDetail(d => (d === item.key ? null : item.key))}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                      background: on ? "var(--accent-dim)" : "var(--panel-2)",
-                      border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
-                      borderRadius: "var(--radius)",
-                      padding: "14px 8px",
-                      minHeight: 78,
-                      cursor: "pointer",
-                      color: "inherit",
-                      fontFamily: "inherit",
-                    }}
                   >
-                    <span className="label">{item.label}</span>
-                    <span style={{ color: "var(--accent)", fontSize: 26, fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                      {item.value === null ? "-" : r1(item.value)}
-                    </span>
-                    <span className="muted" style={{ fontSize: 10.5 }}>{on ? "닫기" : "종목 그래프"}</span>
+                    <span className="t-label">{item.label}</span>
+                    <span className="t-value">{item.value === null ? "-" : r1(item.value)}</span>
+                    <span className="t-sub">{on ? "닫기" : "종목 그래프"}</span>
                   </button>
                 );
               })}
             </div>
-            <div className="muted small" style={{ textAlign: "center", marginBottom: 4 }}>
+            <div className="faint xs sbi-note">
               U15 · C = 5.1 · 팔꿈치 폄 Method 2 · SBI/SMI 탭하여 구성 종목 확인
             </div>
 
+            <div className="divider" />
+
             {detail === "sbi" && (
-              <div style={{ marginTop: 10, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-                <div className="muted small" style={{ fontWeight: 700, marginBottom: 8, letterSpacing: 0.6 }}>SBI 구성 종목</div>
+              <>
+                <div className="eyebrow mb8">SBI 구성 종목</div>
                 <ScoreBar label="스쿼트" score={Math.round(result.sSquat ?? 0)} comment={result.nSquat !== null ? `${result.nSquat}개` : undefined} />
                 <ScoreBar label="외발 데드리프트" score={Math.round(result.sDead ?? 0)} comment={result.nDead !== null ? `${result.nDead}회` : undefined} />
                 <ScoreBar label="푸쉬업" score={Math.round(result.sPush ?? 0)} comment={result.nPush !== null ? `${result.nPush}개` : undefined} />
@@ -366,11 +355,11 @@ export default function SbiPage() {
                 <ScoreBar label="버티컬 (정규화)" score={Math.round(result.normVert ?? 0)} comment={result.nVert !== null ? `${result.nVert}cm` : undefined} />
                 <ScoreBar label="최고 구속 (정규화)" score={Math.round(result.normVelo ?? 0)} comment={result.nVelo !== null ? `${result.nVelo}km/h` : undefined} />
                 <ScoreBar label="스프린트 (정규화)" score={Math.round(result.normSprint ?? 0)} comment={result.nSprint !== null ? `${result.nSprint}초` : undefined} />
-              </div>
+              </>
             )}
             {detail === "smi" && (
-              <div style={{ marginTop: 10, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-                <div className="muted small" style={{ fontWeight: 700, marginBottom: 8, letterSpacing: 0.6 }}>SMI 구성 종목</div>
+              <>
+                <div className="eyebrow mb8">SMI 구성 종목</div>
                 <ScoreBar
                   label="제동력"
                   score={Math.round(result.sBrake ?? 0)}
@@ -386,94 +375,105 @@ export default function SbiPage() {
                   score={Math.round(result.sElbow ?? 0)}
                   comment={result.nElbow !== null ? `${result.nElbow}m` : undefined}
                 />
-              </div>
+              </>
             )}
             {detail === null && (
-              <Radar values={[result.sSquat, result.sDead, result.sPush, result.normVert, result.normVelo, result.normSprint]} />
+              <>
+                <div className="eyebrow mb8">SBI 종목 프로필</div>
+                <Radar values={[result.sSquat, result.sDead, result.sPush, result.normVert, result.normVelo, result.normSprint]} />
+              </>
             )}
+
             {result.warn && (
-              <div className="error-box" style={{ marginTop: 8 }}>
+              <Notice kind="warn" className="mt12">
                 <b>구속 버퍼 경고</b> — 스트렝스/역학 점수는 우수하나 구속이 부족합니다. 체중 부족 또는 순발력(파워 전환) 부족을 점검해보세요.
-              </div>
+              </Notice>
             )}
           </div>
 
-          <div className="card mt16">
-            <h3>SBI 세부</h3>
-            <table className="tbl">
-              <tbody>
-                <tr><td className="muted">스쿼트</td><td className="num"><b>{result.sSquat === null ? "-" : `${r1(result.sSquat)} (${result.nSquat}개)`}</b></td></tr>
-                <tr><td className="muted">외발 데드리프트</td><td className="num"><b>{result.sDead === null ? "-" : `${r1(result.sDead)} (${result.nDead}회)`}</b></td></tr>
-                <tr><td className="muted">푸쉬업</td><td className="num"><b>{result.sPush === null ? "-" : `${r1(result.sPush)} (${result.nPush}개)`}</b></td></tr>
-                <tr><td className="muted">3대 스트렝스 평균</td><td className="num"><b>{result.avg === null ? "-" : r1(result.avg)}</b></td></tr>
-                <tr><td className="muted">버티컬 / 구속 / 스프린트</td><td className="num"><b>{result.nVert ?? "-"} / {result.nVelo ?? "-"} / {result.nSprint ?? "-"}</b></td></tr>
-                <tr>
-                  <td style={{ color: "var(--accent)", fontWeight: 700 }}>SBI</td>
-                  <td className="num" style={{ color: "var(--accent)", fontWeight: 700 }}>{result.sbi === null ? "-" : r1(result.sbi)}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="card">
+            <div className="card-head">
+              <h3>SBI 세부</h3>
+              <span className="meta">환산 점수 (측정값)</span>
+            </div>
+            <div className="kv">
+              <div className="kv-row">
+                <span className="k">스쿼트</span>
+                <span className="v">{result.sSquat === null ? "-" : `${r1(result.sSquat)} (${result.nSquat}개)`}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">외발 데드리프트</span>
+                <span className="v">{result.sDead === null ? "-" : `${r1(result.sDead)} (${result.nDead}회)`}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">푸쉬업</span>
+                <span className="v">{result.sPush === null ? "-" : `${r1(result.sPush)} (${result.nPush}개)`}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">3대 스트렝스 평균</span>
+                <span className="v">{result.avg === null ? "-" : r1(result.avg)}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">버티컬 / 구속 / 스프린트</span>
+                <span className="v">{result.nVert ?? "-"} / {result.nVelo ?? "-"} / {result.nSprint ?? "-"}</span>
+              </div>
+              <div className="kv-row total">
+                <span className="k">SBI</span>
+                <span className="v">{result.sbi === null ? "-" : r1(result.sbi)}</span>
+              </div>
+            </div>
             {result.sbiRaw !== null && result.avg !== null && (
-              <div className="small muted mt8" style={{ fontFamily: "var(--mono)", lineHeight: 1.7 }}>
-                SBI = ({r1(result.avg)}+{result.nVert}+{result.nVelo})÷({result.nSprint}×10)×{C_U15} = <b style={{ color: "var(--accent)" }}>{r1(result.sbiRaw)}</b>
+              <div className="formula">
+                SBI = ({r1(result.avg)}+{result.nVert}+{result.nVelo})÷({result.nSprint}×10)×{C_U15} = <b>{r1(result.sbiRaw)}</b>
               </div>
             )}
           </div>
 
-          <div className="card mt16">
-            <h3>SMI 세부</h3>
-            <table className="tbl">
-              <tbody>
-                <tr>
-                  <td className="muted">제동력</td>
-                  <td className="num">
-                    <b>
-                      {result.sBrake === null
-                        ? "-"
-                        : `${r1(result.sBrake)} (${r1(result.brakePct!)}%)`}
-                    </b>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="muted">가속효율</td>
-                  <td className="num">
-                    <b>
-                      {result.sAccel === null
-                        ? "-"
-                        : `${r1(result.sAccel)} (${r1(result.accelPct!)}%)`}
-                    </b>
-                  </td>
-                </tr>
-                <tr>
-                  <td className="muted">팔꿈치 폄 (M2)</td>
-                  <td className="num">
-                    <b>{result.sElbow === null ? "-" : `${r1(result.sElbow)} (${result.nElbow}m)`}</b>
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ color: "var(--accent)", fontWeight: 700 }}>SMI</td>
-                  <td className="num" style={{ color: "var(--accent)", fontWeight: 700 }}>
-                    {result.smi === null ? "-" : r1(result.smi)}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ color: "var(--accent)", fontWeight: 700 }}>최종 R</td>
-                  <td className="num" style={{ color: "var(--accent)", fontWeight: 700 }}>
-                    {result.finalR === null ? "-" : r1(result.finalR)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="card">
+            <div className="card-head">
+              <h3>SMI 세부</h3>
+              <span className="meta">환산 점수 (측정값)</span>
+            </div>
+            <div className="kv">
+              <div className="kv-row">
+                <span className="k">제동력</span>
+                <span className="v">
+                  {result.sBrake === null
+                    ? "-"
+                    : `${r1(result.sBrake)} (${r1(result.brakePct!)}%)`}
+                </span>
+              </div>
+              <div className="kv-row">
+                <span className="k">가속효율</span>
+                <span className="v">
+                  {result.sAccel === null
+                    ? "-"
+                    : `${r1(result.sAccel)} (${r1(result.accelPct!)}%)`}
+                </span>
+              </div>
+              <div className="kv-row">
+                <span className="k">팔꿈치 폄 (M2)</span>
+                <span className="v">{result.sElbow === null ? "-" : `${r1(result.sElbow)} (${result.nElbow}m)`}</span>
+              </div>
+              <div className="kv-row total">
+                <span className="k">SMI</span>
+                <span className="v">{result.smi === null ? "-" : r1(result.smi)}</span>
+              </div>
+              <div className="kv-row total">
+                <span className="k">최종 R</span>
+                <span className="v">{result.finalR === null ? "-" : r1(result.finalR)}</span>
+              </div>
+            </div>
             {result.smi !== null && result.sbi !== null && (
-              <div className="small muted mt8" style={{ fontFamily: "var(--mono)", lineHeight: 1.7 }}>
-                SMI = ({r1(result.sBrake!)}+{r1(result.sAccel!)}+{r1(result.sElbow!)})÷3 = <b style={{ color: "var(--accent)" }}>{r1(result.smi)}</b>
+              <div className="formula">
+                SMI = ({r1(result.sBrake!)}+{r1(result.sAccel!)}+{r1(result.sElbow!)})÷3 = <b>{r1(result.smi)}</b>
                 <br />
-                R = {r1(result.sbi)}/2 + {r1(result.smi)}/2 = <b style={{ color: "var(--accent)" }}>{r1(result.finalR!)}</b>
+                R = {r1(result.sbi)}/2 + {r1(result.smi)}/2 = <b>{r1(result.finalR!)}</b>
               </div>
             )}
-            <details className="mt8">
-              <summary className="small muted" style={{ cursor: "pointer" }}>SMI 환산 공식 보기</summary>
-              <div className="small muted" style={{ lineHeight: 1.9, marginTop: 6 }}>
+            <details className="sbi-formula-details mt12">
+              <summary>SMI 환산 공식 보기</summary>
+              <div className="small faint">
                 <b>제동력</b> (착지거리÷신장×100): ≥300→100 | 290~300→70+(%−290)×3 | 240~290→40+(%−240)×0.6 | &lt;240→%×(40/240)<br />
                 <b>가속효율</b> (전신÷상체만×100): ≥140→100 | 139~140→70+(%−139)×30 | 115~139→40+(%−115)×(30/24) | &lt;115→%×(40/115)<br />
                 <b>팔꿈치 폄 Method 2</b> (m): ≥8.5→100 | 8~8.5→70+(m−8)×60 | 6~8→40+(m−6)×15 | &lt;6→m×(40/6)

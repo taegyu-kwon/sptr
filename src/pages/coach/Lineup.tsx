@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "../../lib/store";
 import { evaluatePlayer } from "../../lib/gpe";
 import { LINEUP_SLOTS, currentLineup, defaultLineup, lineupStrength } from "../../lib/lineup";
-import { ScoreBar } from "../../components/ui";
+import { Empty, Notice, PageHead, ScoreBar } from "../../components/ui";
 
 export default function LineupPage() {
   const { db, user, setDB } = useStore();
@@ -41,12 +41,14 @@ export default function LineupPage() {
     setTimeout(() => setSavedMsg(false), 3000);
   };
 
+  const placedSlots = LINEUP_SLOTS.filter(s => slots[s]);
+
   return (
     <>
-      <h1 className="page-title">라인업 시뮬레이션</h1>
-      <p className="page-desc">
-        슬롯별로 선수를 배치하면 라인업 전력이 즉시 계산됩니다. 저장하면 선수단의 팀 플랜 페이지에 예상 라인업으로 공개됩니다.
-      </p>
+      <PageHead
+        title="라인업 시뮬레이션"
+        desc="슬롯별로 선수를 배치하면 라인업 전력이 즉시 계산됩니다. 저장하면 선수단의 팀 플랜 페이지에 예상 라인업으로 공개됩니다."
+      />
 
       <div className="grid cols-3">
         <div className="card stat">
@@ -66,23 +68,25 @@ export default function LineupPage() {
         </div>
       </div>
 
-      <div className="card mt16">
-        <div className="flex between wrap">
-          <h3 style={{ margin: 0 }}>슬롯 배치</h3>
-          <div className="flex" style={{ gap: 8 }}>
-            <button className="btn ghost sm" onClick={() => setSlots(defaultLineup(players))}>
+      <div className="card mt12">
+        <div className="card-head">
+          <h3>슬롯 배치</h3>
+          <div className="actions">
+            <button type="button" className="btn outline sm" onClick={() => setSlots(defaultLineup(players))}>
               추천 라인업 자동 배치
             </button>
-            <button className="btn sm" onClick={save}>라인업 저장 (팀에 공개)</button>
+            <button type="button" className="btn sm" onClick={save}>라인업 저장 (팀에 공개)</button>
           </div>
         </div>
-        {savedMsg && <div className="ok-box mt8">저장되었습니다. 선수/학부모 팀 플랜 페이지에 반영됩니다.</div>}
-        <div className="lineup-grid mt16">
+        {savedMsg && (
+          <Notice kind="ok" className="mb12">저장되었습니다. 선수/학부모 팀 플랜 페이지에 반영됩니다.</Notice>
+        )}
+        <div className="lineup-grid">
           {LINEUP_SLOTS.map(slot => {
             const selected = slots[slot] ?? "";
             const pool = slot === "선발투수" ? players.filter(p => p.position === "투수") : players;
             return (
-              <div className="lineup-slot" key={slot}>
+              <div className={`lineup-slot${selected ? " filled" : ""}`} key={slot}>
                 <div className="slot-name">{slot}</div>
                 <select value={selected} onChange={e => setSlot(slot, e.target.value)}>
                   <option value="">— 미배치 —</option>
@@ -101,14 +105,18 @@ export default function LineupPage() {
         </div>
       </div>
 
-      <div className="card mt16">
+      <div className="card">
         <h3>배치 선수 전력 상세</h3>
-        {LINEUP_SLOTS.filter(s => slots[s]).map(slot => {
-          const p = players.find(x => x.id === slots[slot]);
-          if (!p) return null;
-          const r = evaluatePlayer(p);
-          return <ScoreBar key={slot} label={`${slot} — ${p.name}`} score={r.total} comment={`${p.position}, ${p.grade}학년`} />;
-        })}
+        {placedSlots.length === 0 ? (
+          <Empty>배치된 선수가 없습니다. 슬롯에 선수를 배치하면 전력이 표시됩니다.</Empty>
+        ) : (
+          placedSlots.map(slot => {
+            const p = players.find(x => x.id === slots[slot]);
+            if (!p) return null;
+            const r = evaluatePlayer(p);
+            return <ScoreBar key={slot} label={`${slot} — ${p.name}`} score={r.total} comment={`${p.position}, ${p.grade}학년`} />;
+          })
+        )}
       </div>
     </>
   );

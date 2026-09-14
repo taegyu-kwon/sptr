@@ -1,0 +1,17 @@
+/* ================================================================
+   선수 화면 전용 스타일 — 토큰만 사용.
+   공통 시트(styles.css)에 이미 있는 클래스는 여기서 다시 정의하지 않는다.
+   ================================================================ */
+
+/* 부상 리스크 요인 목록 (불릿 유지, 기본 ul 여백만 정돈) */
+.risk-factors { margin: 12px 0 0; padding-left: 18px; }
+.risk-factors li + li { margin-top: 4px; }
+
+/* 다가오는 일정 — 왼쪽 날짜 블록 (월 / 일 두 줄) */
+.date-block { width: 44px; flex-shrink: 0; text-align: center; line-height: 1.1; }
+.date-block .m { display: block; font-size: 11.5px; font-weight: 500; color: var(--fg-3); }
+.date-block .d {
+  display: block; margin-top: 2px;
+  font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}

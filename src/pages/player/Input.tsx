@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useStore } from "../../lib/store";
 import { latest } from "../../lib/gpe";
 import type { Snapshot } from "../../lib/types";
+import { PageHead, Notice } from "../../components/ui";
 
 type Section = "body" | "athletic" | "practical";
 
@@ -29,6 +30,8 @@ const athleticFields = [
   { key: "run5kPace", label: "5km 러닝 페이스 (분/km)", step: 0.01 },
   { key: "plankMax", label: "플랭크 max (초)", step: 1 },
 ] as const;
+
+const PREFILL_HINT = "최근 측정값이 미리 채워져 있어요";
 
 export default function InputPage() {
   const { db, user, addSnapshot } = useStore();
@@ -82,10 +85,10 @@ export default function InputPage() {
 
   return (
     <>
-      <h1 className="page-title">분야별 데이터 입력</h1>
-      <p className="page-desc">
-        측정한 데이터를 입력하면 새 측정 기록으로 저장되고, 능력치·성장 그래프에 즉시 반영됩니다. (최근 측정값이 미리 채워져 있습니다)
-      </p>
+      <PageHead
+        title="분야별 데이터 입력"
+        desc="측정한 데이터를 입력하면 새 측정 기록으로 저장되고, 능력치·성장 그래프에 즉시 반영됩니다."
+      />
 
       <div className="tabs">
         <button className={section === "body" ? "on" : ""} onClick={() => setSection("body")}>신체 데이터</button>
@@ -96,7 +99,10 @@ export default function InputPage() {
       <form onSubmit={submit}>
         {section === "body" && (
           <div className="card">
-            <h3>신체 데이터</h3>
+            <div className="card-head">
+              <h3>신체 데이터</h3>
+              <span className="meta">{PREFILL_HINT}</span>
+            </div>
             <div className="form-grid">
               {bodyFields.map(f => (
                 <div className="field" key={f.key}>
@@ -104,7 +110,7 @@ export default function InputPage() {
                   {numInput(body[f.key], v => setBody(prev => ({ ...prev, [f.key]: v })), f.step)}
                 </div>
               ))}
-              <div className="field" style={{ gridColumn: "1 / -1" }}>
+              <div className="field span-all">
                 <label>부상/통증 이력 (쉼표로 구분, 없으면 비워두기)</label>
                 <input
                   value={body.injuryHistory}
@@ -118,7 +124,10 @@ export default function InputPage() {
 
         {section === "athletic" && (
           <div className="card">
-            <h3>운동능력 데이터</h3>
+            <div className="card-head">
+              <h3>운동능력 데이터</h3>
+              <span className="meta">{PREFILL_HINT}</span>
+            </div>
             <div className="form-grid">
               {athleticFields.map(f => (
                 <div className="field" key={f.key}>
@@ -132,7 +141,10 @@ export default function InputPage() {
 
         {section === "practical" && (
           <div className="card">
-            <h3>실전 데이터 <span className="sub">({practical.kind} 기준)</span></h3>
+            <div className="card-head">
+              <h3>실전 데이터 <span className="sub">({practical.kind} 기준)</span></h3>
+              <span className="meta">{PREFILL_HINT}</span>
+            </div>
             <div className="form-grid">
               <div className="field">
                 <label>선수 유형</label>
@@ -154,9 +166,9 @@ export default function InputPage() {
           </div>
         )}
 
-        <div className="flex mt16" style={{ gap: 12 }}>
+        <div className="flex wrap gap12 mt16">
           <button className="btn" type="submit">측정 기록 저장</button>
-          {saved && <span className="ok-box">저장되었습니다. 능력치와 그래프에 반영됐어요.</span>}
+          {saved && <Notice kind="ok">저장되었습니다. 능력치와 그래프에 반영됐어요.</Notice>}
         </div>
       </form>
     </>
