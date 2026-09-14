@@ -46,7 +46,7 @@ export default function Auth() {
       <aside className="auth-side">
         <div className="top">
           <BrandMark />
-          <span className="wordmark">SPTR</span>
+          <span className="wordmark">SPTR<i>.</i></span>
         </div>
         <div>
           <h1 className="big">SPTR<i>.</i></h1>

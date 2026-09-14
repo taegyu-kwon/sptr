@@ -59,7 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="hdr-row">
           <div className="hdr-brand">
             <BrandMark />
-            <span className="wordmark">SPTR</span>
+            <span className="wordmark">SPTR<i>.</i></span>
             <span className="hdr-sep" />
             <span className="hdr-team">{team?.name ?? "팀 미지정"}</span>
           </div>
