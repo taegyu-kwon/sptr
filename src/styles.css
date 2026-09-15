@@ -717,14 +717,16 @@ span.ok-box, span.error-box { display: inline-flex; padding: 6px 10px; }
 /* ================================================================
    인증 — 왼쪽 브랜드 패널 + 오른쪽 폼
    ================================================================ */
-.auth { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+/* 배경은 화면 전체에 하나로 — 왼쪽 브랜드 영역과 오른쪽 폼 사이에 경계를 두지 않는다 */
+.auth {
+  min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background:
+    radial-gradient(900px 620px at 9% 100%, rgba(201, 245, 66, 0.11), transparent 60%),
+    linear-gradient(160deg, #121215 0%, #000 70%);
+}
 .auth-side {
   position: relative; overflow: hidden; padding: 44px 48px;
   display: flex; flex-direction: column; justify-content: space-between; gap: 40px;
-  background:
-    radial-gradient(900px 620px at 18% 100%, rgba(201, 245, 66, 0.11), transparent 60%),
-    linear-gradient(160deg, #121215 0%, #000 70%);
-  border-right: 1px solid var(--line);
 }
 .auth-side .top { display: flex; align-items: center; gap: 10px; }
 .auth-side .big { font-size: clamp(64px, 11vw, 136px); font-weight: 800; letter-spacing: -0.07em; line-height: 0.88; margin: 0; }
@@ -753,7 +755,7 @@ span.ok-box, span.error-box { display: inline-flex; padding: 6px 10px; }
 .link-btn:hover { color: var(--fg-2); }
 @media (max-width: 900px) {
   .auth { grid-template-columns: 1fr; }
-  .auth-side { padding: 24px 20px 26px; gap: 14px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .auth-side { padding: 24px 20px 26px; gap: 14px; }
   .auth-side .big { font-size: 56px; }
   .auth-side .tag { font-size: 14px; margin-top: 8px; max-width: none; }
   .auth-side .foot { display: none; }
