@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { evaluatePlayerSbi, r1 } from "../../lib/sbi";
+import { fmtDate } from "../../lib/format";
 import { Avatar, Cell, Cells, Empty, Medal, PageHead, Seg } from "../../components/ui";
 import "../../styles/coach.css";
 
@@ -32,6 +33,7 @@ export default function CoachSbiListPage() {
   }, [db.players, user?.teamId, sortKey]);
 
   const measured = rows.filter(x => x.idx !== null);
+  const unmeasured = rows.length - measured.length;
   const avgR = measured.length ? measured.reduce((s, x) => s + (x.idx?.finalR ?? 0), 0) / measured.length : 0;
   const best = measured.reduce<(typeof measured)[number] | null>(
     (top, x) => (!top || (x.idx?.finalR ?? -1) > (top.idx?.finalR ?? -1) ? x : top),
@@ -63,6 +65,7 @@ export default function CoachSbiListPage() {
           />
           <Cell label="측정 완료" value={measured.length} unit={`/ ${rows.length}명`} />
         </Cells>
+        {unmeasured > 0 && <div className="faint small mt12">미측정 {unmeasured}명</div>}
       </div>
 
       <div className="panel">
@@ -78,6 +81,7 @@ export default function CoachSbiListPage() {
                   <th className={`num${sorted("sbi")}`}>SBI</th>
                   <th className={`num${sorted("smi")}`}>SMI</th>
                   <th className={`num${sorted("finalR")}`}>최종 R</th>
+                  <th>측정일</th>
                 </tr>
               </thead>
               <tbody>
@@ -102,6 +106,11 @@ export default function CoachSbiListPage() {
                     <td className="num">
                       <span className="brand-text strong">{idx ? r1(idx.finalR) : "-"}</span>
                     </td>
+                    {p.sbiMetrics?.date ? (
+                      <td>{fmtDate(p.sbiMetrics.date)}</td>
+                    ) : (
+                      <td className="dim">{p.sbiMetrics ? "측정일 미기록" : "미측정"}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>

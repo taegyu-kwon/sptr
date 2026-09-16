@@ -488,8 +488,11 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .btn.outline:hover { background: var(--surface-2); }
 .btn.ghost { background: transparent; color: var(--fg-2); }
 .btn.ghost:hover { background: var(--surface-2); color: var(--fg); }
-.btn.danger { color: var(--bad); }
-.btn.danger:hover { background: var(--bad-soft); }
+/* 되돌릴 수 없는 동작: 확인 버튼은 채운 빨강, 여는 버튼(.ghost/.outline)은 테두리만 */
+.btn.danger { background: var(--bad); color: #2b0a09; border-color: transparent; }
+.btn.danger:hover { background: #ff7d78; }
+.btn.ghost.danger, .btn.outline.danger { background: transparent; color: var(--bad); border-color: var(--bad-line); }
+.btn.ghost.danger:hover, .btn.outline.danger:hover { background: var(--bad-soft); color: var(--bad); }
 .btn.sm { height: 32px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; gap: 6px; }
 .btn.sm svg { width: 14px; height: 14px; }
 .btn.lg { height: 46px; padding: 0 20px; font-size: 14.5px; border-radius: 12px; }

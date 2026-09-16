@@ -5,9 +5,6 @@
 /* 선수 프로필 표: 셀 안에서 줄바꿈하지 않고 .tbl-wrap 가로 스크롤에 맡긴다 */
 .players-tbl td { white-space: nowrap; }
 
-/* 실선 두 열 — styles.css 에는 .cells.n2 만 있고 .columns 용 2열 변형이 없어 여기서 보탠다 */
-.columns.n2 { --n: 2; }
-
 /* 히어로 패널 오른쪽 숫자 묶음 — 링·큰 숫자 옆에 서다가 좁아지면(모바일) 아래 줄로 내려간다 */
 .hero-stats { flex: 1 1 280px; min-width: 0; }
 

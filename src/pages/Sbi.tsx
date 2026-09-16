@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "../styles/sbi.css";
 import { useStore } from "../lib/store";
 import { latest } from "../lib/gpe";
+import { today } from "../lib/roster";
+import { fmtDate } from "../lib/format";
 import { ScoreBar, ScoreRing, PageHead, Section, Notice } from "../components/ui";
 
 const clamp100 = (v: number) => Math.max(0, Math.min(100, v));
@@ -130,26 +132,38 @@ const parse = (s: string): number | null => {
 };
 
 export default function SbiPage() {
-  const { db, user } = useStore();
+  const { db, user, saveSbiMetrics } = useStore();
   const me = user?.playerId ? db.players.find(p => p.id === user.playerId) : null;
   const snap = me ? latest(me) : null;
+  /** 이미 저장된 측정 기록 — 있으면 계산기 입력의 초기값이 된다 */
+  const savedMetrics = me?.sbiMetrics;
+  /** 저장은 선수 계정에서만 가능하다 */
+  const canSave = Boolean(user?.playerId && me);
 
   const [grade, setGrade] = useState(me ? String(Math.min(3, Math.max(1, me.grade))) : "3");
   const [height, setHeight] = useState(snap ? String(snap.body.height) : "175");
   const [weight, setWeight] = useState(snap ? String(snap.body.weight) : "65");
   const [velo, setVelo] = useState(snap ? String(snap.practical.maxVelo) : "132");
-  const [sprint, setSprint] = useState("1.55");
-  const [vertical, setVertical] = useState("58");
-  const [squat, setSquat] = useState("50");
-  const [dead, setDead] = useState("13");
-  const [push, setPush] = useState("16");
+  const [sprint, setSprint] = useState(savedMetrics ? String(savedMetrics.sprint) : "1.55");
+  const [vertical, setVertical] = useState(savedMetrics ? String(savedMetrics.vertical) : "58");
+  const [squat, setSquat] = useState(savedMetrics ? String(savedMetrics.squatReps) : "50");
+  const [dead, setDead] = useState(savedMetrics ? String(savedMetrics.deadReps) : "13");
+  const [push, setPush] = useState(savedMetrics ? String(savedMetrics.pushReps) : "16");
 
   // SMI 입력 (Method 2)
-  const [landDist, setLandDist] = useState("480"); // 착지거리 cm
-  const [upperOnly, setUpperOnly] = useState("8.5"); // 하체고정 상체만 (m)
-  const [fullBody, setFullBody] = useState("11"); // 전신 투구폼 (m)
-  const [elbowThrow, setElbowThrow] = useState("7.2"); // 무릎 꿇고 메디신볼 (m)
+  const [landDist, setLandDist] = useState(savedMetrics ? String(savedMetrics.landDist) : "480"); // 착지거리 cm
+  const [upperOnly, setUpperOnly] = useState(savedMetrics ? String(savedMetrics.upperOnly) : "8.5"); // 하체고정 상체만 (m)
+  const [fullBody, setFullBody] = useState(savedMetrics ? String(savedMetrics.fullBody) : "11"); // 전신 투구폼 (m)
+  const [elbowThrow, setElbowThrow] = useState(savedMetrics ? String(savedMetrics.elbowThrow) : "7.2"); // 무릎 꿇고 메디신볼 (m)
   const [detail, setDetail] = useState<"sbi" | "smi" | null>(null);
+  const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+
+  // 성공 알림만 3초 뒤 사라진다. 오류는 고칠 때까지 남긴다.
+  useEffect(() => {
+    if (saveMsg?.kind !== "ok") return;
+    const t = window.setTimeout(() => setSaveMsg(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [saveMsg]);
 
   const result = useMemo(() => {
     const h = parse(height), w = parse(weight);
@@ -218,11 +232,76 @@ export default function SbiPage() {
     { key: "smi" as const, label: "SMI", value: result.smi },
   ];
 
+  /**
+   * 코치 화면(evaluatePlayerSbi)은 신장·최고 구속을 선수의 최근 측정 기록에서 읽는다.
+   * 계산기에 입력한 값이 그 기록과 다르면 저장 뒤 점수가 달라지므로 두 값을 함께 보여준다.
+   */
+  const bodyMismatch = useMemo(() => {
+    if (!canSave || !snap) return null;
+    const h = parse(height);
+    const v = parse(velo);
+    if (h === null || v === null) return null;
+    const recH = snap.body.height;
+    const recV = snap.practical.maxVelo;
+    if (Math.abs(h - recH) < 0.05 && Math.abs(v - recV) < 0.5) return null;
+    return { h, v, recH, recV };
+  }, [canSave, snap, height, velo]);
+
+  /** 저장 대상 9개 항목 — 라벨은 검증 메시지에 그대로 쓴다 */
+  const metricFields: { label: string; raw: string }[] = [
+    { label: "10m 스프린트", raw: sprint },
+    { label: "버티컬 점프", raw: vertical },
+    { label: "스쿼트", raw: squat },
+    { label: "외발 데드리프트", raw: dead },
+    { label: "푸쉬업", raw: push },
+    { label: "제동력 착지거리", raw: landDist },
+    { label: "가속효율 상체만 던지기", raw: upperOnly },
+    { label: "가속효율 전신 던지기", raw: fullBody },
+    { label: "팔꿈치 폄 Method 2", raw: elbowThrow },
+  ];
+
+  const handleSave = () => {
+    if (!user?.playerId) return;
+    const invalid = metricFields.filter(f => {
+      const v = parse(f.raw);
+      return v === null || v <= 0;
+    });
+    if (invalid.length > 0) {
+      setSaveMsg({
+        kind: "error",
+        text: `측정값 9개를 모두 입력해야 저장할 수 있습니다. 확인할 항목: ${invalid.map(f => f.label).join(", ")}`,
+      });
+      return;
+    }
+    saveSbiMetrics(user.playerId, {
+      date: today(),
+      sprint: parse(sprint)!,
+      vertical: parse(vertical)!,
+      squatReps: parse(squat)!,
+      deadReps: parse(dead)!,
+      pushReps: parse(push)!,
+      landDist: parse(landDist)!,
+      upperOnly: parse(upperOnly)!,
+      fullBody: parse(fullBody)!,
+      elbowThrow: parse(elbowThrow)!,
+    });
+    setSaveMsg({ kind: "ok", text: "측정 기록이 저장되었습니다. 코치 화면 SBI/SMI 리스트에 반영됩니다." });
+  };
+
   return (
     <>
       <PageHead
         title="SBI / SMI 계산기"
         desc="U15 중학교 기준 — SBI(버퍼 인덱스)와 SMI(역학 인덱스, 팔꿈치 폄 속도 Method 2)를 함께 산출합니다. 최종 점수 R = SBI/2 + SMI/2"
+        actions={
+          canSave ? (
+            <button type="button" className="btn" onClick={handleSave}>
+              {savedMetrics ? "측정 기록 덮어쓰기" : "측정 기록 저장"}
+            </button>
+          ) : user ? (
+            <span className="faint small">코치 계정에서는 계산만 가능합니다.</span>
+          ) : undefined
+        }
       />
 
       {/* ---------- 결과 히어로 — 주인공은 최종 R 링 ---------- */}
@@ -260,13 +339,38 @@ export default function SbiPage() {
               U15 기준 · C = 5.1 · 팔꿈치 폄 Method 2
             </div>
             <div className="faint xs mono mt4">R = SBI/2 + SMI/2</div>
+            {canSave && savedMetrics && (
+              <div className="faint xs mt4">
+                {savedMetrics.date ? `최근 저장 ${fmtDate(savedMetrics.date)}` : "저장된 기록 있음"}
+              </div>
+            )}
           </div>
         </div>
+
+        {saveMsg && (
+          <Notice kind={saveMsg.kind} className="mt16">
+            {saveMsg.text}
+          </Notice>
+        )}
+
+        {bodyMismatch && (
+          <Notice kind="warn" className="mt16">
+            계산기의 신장/구속({r1(bodyMismatch.h)}cm · {r1(bodyMismatch.v)}km/h)이 최근 측정 기록(
+            {r1(bodyMismatch.recH)}cm · {r1(bodyMismatch.recV)}km/h)과 다릅니다. 저장된 점수는 측정 기록 기준으로 계산됩니다.
+          </Notice>
+        )}
 
         {result.warn && (
           <Notice kind="warn" className="mt16">
             <b>구속 버퍼 경고</b> — 스트렝스/역학 점수는 우수하나 구속이 부족합니다. 체중 부족 또는 순발력(파워 전환) 부족 여부를 점검해야 합니다.
           </Notice>
+        )}
+
+        {canSave && (
+          <div className="faint xs mt12">
+            저장된 기록으로 코치 화면에서 다시 계산할 때는 신장과 최고 구속을 선수의 최근 측정 기록 값으로 씁니다. 저장 대상은 아래 9개
+            측정값이며, 신장·체중·구속은 저장되지 않습니다.
+          </div>
         )}
       </div>
 

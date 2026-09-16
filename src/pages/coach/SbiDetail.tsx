@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { latest } from "../../lib/gpe";
+import { fmtDate } from "../../lib/format";
 import PlayerSbiCard from "../../components/PlayerSbiCard";
 import { PageHead, Section } from "../../components/ui";
 import { Icon } from "../../components/icons";
@@ -41,7 +42,7 @@ export default function CoachSbiDetailPage() {
       <PlayerSbiCard player={player} />
 
       {m && (
-        <Section title="측정 원자료">
+        <Section title="측정 원자료" meta={m.date ? `측정일 ${fmtDate(m.date)}` : "측정일 미기록"}>
           <div className="panel">
             <div className="columns n2">
               <div className="col">

@@ -1,0 +1,19 @@
+/* ================================================================
+   선수단 관리(등록·수정·삭제) 전용 스타일 — 토큰만 사용.
+   공통 클래스는 styles.css 에 있고, 여기서는 이 두 화면 안에서만 손본다.
+   ================================================================ */
+
+/* 가입 코드 알림 — 코치가 코드를 옮겨 적을 때까지 남는다.
+   Notice 안쪽 본문이 늘어나야 닫기 버튼이 오른쪽 끝에 선다. */
+.notice.roster-code > div { flex: 1 1 auto; min-width: 0; }
+.notice.roster-code .code { font-size: 16px; font-weight: 700; letter-spacing: 0.01em; white-space: nowrap; }
+.notice.roster-code + .panel { margin-top: 12px; }
+
+/* 선수 삭제 영역 — 설명이 길어 좁은 화면에서는 버튼 위로 줄이 늘어난다
+   (확인 버튼 색은 공통 .btn.danger 가 채운 빨강으로 처리한다) */
+.roster-del > .small { flex: 1 1 260px; min-width: 0; line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .roster-del > .small { flex-basis: 100%; }
+  .notice.roster-code .code { white-space: normal; }
+}

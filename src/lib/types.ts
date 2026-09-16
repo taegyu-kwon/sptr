@@ -45,6 +45,7 @@ export interface Snapshot {
 
 /** U15 SBI/SMI 원자료 (덤벨 반복·역학 검사) */
 export interface SbiMetrics {
+  date?: string; // 측정일 ISO (예전 데이터에는 없을 수 있음)
   sprint: number; // 10m 초
   vertical: number; // cm
   squatReps: number;
