@@ -49,6 +49,7 @@ export default function InputPage() {
   const [athletic, setAthletic] = useState({ ...last.athletic });
   const [practical, setPractical] = useState({ ...last.practical });
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isPitcher = practical.kind === "투수";
   const practicalFields = useMemo(
@@ -62,8 +63,25 @@ export default function InputPage() {
     [isPitcher]
   );
 
+  /** 보이지 않는 탭은 브라우저 필수 검사를 받지 않으므로 세 탭을 직접 검사한다 */
+  const firstEmpty = (): { section: Section; label: string } | null => {
+    for (const f of bodyFields) if (!Number.isFinite(body[f.key])) return { section: "body", label: f.label };
+    for (const f of athleticFields) if (!Number.isFinite(athletic[f.key])) return { section: "athletic", label: f.label };
+    for (const f of practicalFields)
+      if (!Number.isFinite(practical[f.key] as number)) return { section: "practical", label: f.label };
+    return null;
+  };
+
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const empty = firstEmpty();
+    if (empty) {
+      setSection(empty.section);
+      setSaved(false);
+      setError(`'${empty.label}' 값이 비어 있습니다. 입력한 뒤 저장하세요.`);
+      return;
+    }
+    setError(null);
     const snap: Snapshot = {
       date: new Date().toISOString().slice(0, 10),
       body: { ...body },
@@ -184,6 +202,7 @@ export default function InputPage() {
         <div className="flex wrap gap12 mt16">
           <button className="btn" type="submit">측정 기록 저장</button>
           {saved && <Notice kind="ok">저장되었습니다. 능력치와 성장 그래프에 반영됩니다.</Notice>}
+          {error && <Notice kind="error">{error}</Notice>}
         </div>
       </form>
     </>

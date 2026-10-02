@@ -125,7 +125,7 @@ export interface GameRecord {
 export interface SavedLineup {
   teamId: string;
   updatedAt: string;
-  slots: Record<string, string>; // 슬롯 키("1"~"9", "SP") -> playerId
+  slots: Record<string, string>; // 슬롯 키("선발투수", "1번"~"9번") -> playerId
 }
 
 export interface UpcomingEvent {

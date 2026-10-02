@@ -240,7 +240,7 @@ export default function GamesPage() {
     { title: "홈런", rows: [...batTotals].sort((a, b) => b.hr - a.hr).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.hr}` })) },
     { title: "타점", rows: [...batTotals].sort((a, b) => b.rbi - a.rbi).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.rbi}` })) },
     { title: "도루", rows: [...batTotals].sort((a, b) => b.sb - a.sb).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.sb}` })) },
-    { title: "평균자책점 (ERA)", rows: [...pitTotals].sort((a, b) => a.era - b.era).slice(0, 5).map(r => ({ id: r.playerId, val: r.era.toFixed(2) })) },
+    { title: "평균자책점 (ERA)", rows: [...pitTotals].filter(r => r.ip > 0).sort((a, b) => a.era - b.era).slice(0, 5).map(r => ({ id: r.playerId, val: r.era.toFixed(2) })) },
     { title: "탈삼진", rows: [...pitTotals].sort((a, b) => b.so - a.so).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.so}` })) },
   ];
 
@@ -617,12 +617,12 @@ export default function GamesPage() {
                     <tr><th>선수</th><th className="num">이닝</th><th className="num">자책</th><th className="num sorted">ERA</th><th className="num">탈삼진</th><th className="num">볼넷</th></tr>
                   </thead>
                   <tbody>
-                    {[...pitTotals].sort((a, b) => a.era - b.era).map(r => (
+                    {[...pitTotals].sort((a, b) => (a.ip > 0 ? 0 : 1) - (b.ip > 0 ? 0 : 1) || a.era - b.era).map(r => (
                       <tr key={r.playerId}>
                         <td className="name">{nameOf(r.playerId)}</td>
                         <td className="num">{r.ip}</td>
                         <td className="num">{r.er}</td>
-                        <td className="num"><b>{r.era.toFixed(2)}</b></td>
+                        <td className="num"><b>{r.ip > 0 ? r.era.toFixed(2) : "-"}</b></td>
                         <td className="num">{r.so}</td>
                         <td className="num">{r.bb}</td>
                       </tr>

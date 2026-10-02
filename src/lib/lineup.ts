@@ -14,11 +14,10 @@ export function defaultLineup(players: Player[]): Record<string, string> {
   if (pitchers.length > 0) slots["선발투수"] = pitchers[0].p.id;
 
   const batters = ranked.filter(x => x.p.id !== slots["선발투수"]).slice(0, 9);
-  // 중심타선(3~5번)에 상위 타자 배치
-  const order = [2, 3, 4, 1, 5, 0, 6, 7, 8]; // 타순 인덱스(0=1번)에 들어갈 랭킹 순번
-  order.forEach((rankIdx, orderIdx) => {
-    const b = batters[rankIdx];
-    if (b) slots[`${orderIdx + 1}번`] = b.p.id;
+  // 중심타선(3~5번)에 상위 타자 배치: 랭킹 1~3위 → 3·4·5번, 4위 → 2번, 5위 → 6번, 6위 → 1번, 7~9위 → 7~9번
+  const orderOf = [2, 3, 4, 1, 5, 0, 6, 7, 8]; // 랭킹 순번(0=최상위)이 들어갈 타순 인덱스(0=1번)
+  batters.forEach((b, rankIdx) => {
+    slots[`${orderOf[rankIdx] + 1}번`] = b.p.id;
   });
   return slots;
 }
