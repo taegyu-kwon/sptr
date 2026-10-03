@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../lib/store";
 import { Cell, Cells, Empty, Medal, Notice, PageHead } from "../../components/ui";
 import { Icon } from "../../components/icons";
-import { fmtDate } from "../../lib/format";
+import { fmtDate, r1 } from "../../lib/format";
 import { today } from "../../lib/roster";
+import { battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, pitchingTotalsByPlayer } from "../../lib/stats";
 import type { BattingLine, PitchingLine } from "../../lib/types";
 import "../../styles/coach.css";
 import "../../styles/games.css";
@@ -179,7 +180,7 @@ export default function GamesPage() {
     }));
     const pitching: PitchingLine[] = pitRows.map(r => ({
       playerId: r.playerId,
-      ip: Math.round(numOf(r.ip) * 10) / 10, er: numOf(r.er), so: numOf(r.so), bb: numOf(r.bb),
+      ip: r1(numOf(r.ip)), er: numOf(r.er), so: numOf(r.so), bb: numOf(r.bb),
     }));
 
     addGame(teamId, {
@@ -207,40 +208,28 @@ export default function GamesPage() {
     return { w, l, d, rf, ra };
   }, [games]);
 
-  const batTotals = useMemo(() => {
-    const map = new Map<string, { ab: number; hits: number; hr: number; rbi: number; sb: number }>();
-    for (const g of games)
-      for (const b of g.batting) {
-        const cur = map.get(b.playerId) ?? { ab: 0, hits: 0, hr: 0, rbi: 0, sb: 0 };
-        map.set(b.playerId, {
-          ab: cur.ab + b.ab, hits: cur.hits + b.hits, hr: cur.hr + b.hr, rbi: cur.rbi + b.rbi, sb: cur.sb + b.sb,
-        });
-      }
-    return [...map.entries()].map(([playerId, s]) => ({
-      playerId, ...s, avg: s.ab > 0 ? s.hits / s.ab : 0,
-    }));
-  }, [games]);
+  const batTotals = useMemo(
+    () =>
+      [...battingTotalsByPlayer(games).entries()].map(([playerId, s]) => ({
+        playerId, ...s, avg: battingAvg(s.hits, s.ab) ?? 0,
+      })),
+    [games]
+  );
 
-  const pitTotals = useMemo(() => {
-    const map = new Map<string, { ip: number; er: number; so: number; bb: number }>();
-    for (const g of games)
-      for (const p of g.pitching) {
-        const cur = map.get(p.playerId) ?? { ip: 0, er: 0, so: 0, bb: 0 };
-        map.set(p.playerId, { ip: cur.ip + p.ip, er: cur.er + p.er, so: cur.so + p.so, bb: cur.bb + p.bb });
-      }
-    return [...map.entries()].map(([playerId, s]) => ({
-      playerId, ...s, ip: Math.round(s.ip * 10) / 10, era: s.ip > 0 ? (s.er * 9) / s.ip : 0,
-    }));
-  }, [games]);
-
-  const fmtAvg = (v: number) => v.toFixed(3).replace(/^0/, "");
+  const pitTotals = useMemo(
+    () =>
+      [...pitchingTotalsByPlayer(games).entries()].map(([playerId, s]) => ({
+        playerId, ...s, ip: r1(s.ip), era: eraOf(s.er, s.ip) ?? 0,
+      })),
+    [games]
+  );
 
   const rankingBlocks = [
     { title: "타율", rows: [...batTotals].sort((a, b) => b.avg - a.avg).slice(0, 5).map(r => ({ id: r.playerId, val: fmtAvg(r.avg) })) },
     { title: "홈런", rows: [...batTotals].sort((a, b) => b.hr - a.hr).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.hr}` })) },
     { title: "타점", rows: [...batTotals].sort((a, b) => b.rbi - a.rbi).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.rbi}` })) },
     { title: "도루", rows: [...batTotals].sort((a, b) => b.sb - a.sb).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.sb}` })) },
-    { title: "평균자책점 (ERA)", rows: [...pitTotals].filter(r => r.ip > 0).sort((a, b) => a.era - b.era).slice(0, 5).map(r => ({ id: r.playerId, val: r.era.toFixed(2) })) },
+    { title: "평균자책점 (ERA)", rows: [...pitTotals].filter(r => r.ip > 0).sort((a, b) => a.era - b.era).slice(0, 5).map(r => ({ id: r.playerId, val: fmtEra(r.era) })) },
     { title: "탈삼진", rows: [...pitTotals].sort((a, b) => b.so - a.so).slice(0, 5).map(r => ({ id: r.playerId, val: `${r.so}` })) },
   ];
 
@@ -622,7 +611,7 @@ export default function GamesPage() {
                         <td className="name">{nameOf(r.playerId)}</td>
                         <td className="num">{r.ip}</td>
                         <td className="num">{r.er}</td>
-                        <td className="num"><b>{r.ip > 0 ? r.era.toFixed(2) : "-"}</b></td>
+                        <td className="num"><b>{r.ip > 0 ? fmtEra(r.era) : "-"}</b></td>
                         <td className="num">{r.so}</td>
                         <td className="num">{r.bb}</td>
                       </tr>

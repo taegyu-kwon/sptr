@@ -1,4 +1,5 @@
 import type { Player, PlayerKind, Position, Snapshot, SignupCode } from "./types";
+import { r1 } from "./format";
 
 /** 선수 등록 시 코치가 입력하는 항목 */
 export interface NewPlayerInput {
@@ -21,7 +22,6 @@ export const today = () => new Date().toISOString().slice(0, 10);
  */
 export function makeInitialSnapshot(input: NewPlayerInput): Snapshot {
   const { age, height, weight, kind } = input;
-  const r1 = (v: number) => Math.round(v * 10) / 10;
   return {
     date: today(),
     body: {

@@ -3,6 +3,7 @@ import { useStore } from "../../lib/store";
 import PlayerReport from "../../components/PlayerReport";
 import { latest } from "../../lib/gpe";
 import { fmtDate } from "../../lib/format";
+import { battingAvg, eraOf, fmtAvg, fmtEra, playerBattingTotals, playerPitchingTotals } from "../../lib/stats";
 import { Section, Cells, Cell } from "../../components/ui";
 
 export default function StatsPage() {
@@ -14,23 +15,17 @@ export default function StatsPage() {
 
   const season = useMemo(() => {
     const games = db.games.filter(g => g.teamId === player.teamId);
-    const bat = { ab: 0, hits: 0, hr: 0, rbi: 0, sb: 0 };
-    const pit = { ip: 0, er: 0, so: 0, bb: 0 };
-    for (const g of games) {
-      for (const b of g.batting) {
-        if (b.playerId !== player.id) continue;
-        bat.ab += b.ab; bat.hits += b.hits; bat.hr += b.hr; bat.rbi += b.rbi; bat.sb += b.sb;
-      }
-      for (const p of g.pitching) {
-        if (p.playerId !== player.id) continue;
-        pit.ip += p.ip; pit.er += p.er; pit.so += p.so; pit.bb += p.bb;
-      }
-    }
-    return { bat, pit, games: games.length };
+    return {
+      bat: playerBattingTotals(games, player.id),
+      pit: playerPitchingTotals(games, player.id),
+      games: games.length,
+    };
   }, [db.games, player.id, player.teamId]);
 
-  const avg = season.bat.ab > 0 ? (season.bat.hits / season.bat.ab).toFixed(3).replace(/^0/, "") : "-";
-  const era = season.pit.ip > 0 ? ((season.pit.er * 9) / season.pit.ip).toFixed(2) : "-";
+  const avgV = battingAvg(season.bat.hits, season.bat.ab);
+  const eraV = eraOf(season.pit.er, season.pit.ip);
+  const avg = avgV === null ? "-" : fmtAvg(avgV);
+  const era = eraV === null ? "-" : fmtEra(eraV);
 
   const seasonCells: { k: string; v: React.ReactNode; unit?: string }[] = isPitcher
     ? [

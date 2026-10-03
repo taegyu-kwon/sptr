@@ -3,64 +3,15 @@ import "../styles/sbi.css";
 import { useStore } from "../lib/store";
 import { latest } from "../lib/gpe";
 import { today } from "../lib/roster";
-import { fmtDate } from "../lib/format";
+import { fmtDate, r1 } from "../lib/format";
+import {
+  C_U15, LOADS, clamp100,
+  scoreSquat, scoreDead, scorePush, scoreBrake, scoreAccel, scoreElbowM2,
+  strengthAvg, sbiRawOf, brakePctOf, accelPctOf, smiOf, finalROf,
+  normVertOf, normVeloOf, normSprintOf,
+} from "../lib/sbi";
 import { ScoreBar, ScoreRing, PageHead, Section, Notice } from "../components/ui";
 
-const clamp100 = (v: number) => Math.max(0, Math.min(100, v));
-const r1 = (v: number) => Math.round(v * 10) / 10;
-
-// ---------- U15 스트렝스 점수 환산 ----------
-function scoreSquat(x: number) {
-  if (x >= 50) return 100;
-  if (x >= 40) return 70 + (x - 40) * 3;
-  if (x >= 30) return 40 + (x - 30) * 3;
-  return x * 1.3;
-}
-function scoreDead(x: number) {
-  if (x >= 13) return 100;
-  if (x >= 9) return 70 + (x - 9) * 7.5;
-  if (x >= 6) return 40 + (x - 6) * 10;
-  return x * 6.5;
-}
-function scorePush(x: number) {
-  if (x >= 40) return 100;
-  if (x >= 29) return 70 + (x - 29) * 2.7;
-  if (x >= 20) return 40 + (x - 20) * 3.3;
-  return x * 1.9;
-}
-
-// ---------- SMI 점수 환산 ----------
-/** 제동력: 신장대비 % */
-function scoreBrake(pct: number) {
-  if (pct >= 300) return 100;
-  if (pct >= 290) return 70 + (pct - 290) * 3;
-  if (pct >= 240) return 40 + (pct - 240) * 0.6;
-  return pct * (40 / 240);
-}
-/** 가속효율: 비대칭비율 % */
-function scoreAccel(pct: number) {
-  if (pct >= 140) return 100;
-  if (pct >= 139) return 70 + (pct - 139) * 30;
-  if (pct >= 115) return 40 + (pct - 115) * (30 / 24);
-  return pct * (40 / 115);
-}
-/** 팔꿈치 폄 속도 Method 2: 무릎 꿇고 메디신볼 비거리(m) */
-function scoreElbowM2(m: number) {
-  if (m >= 8.5) return 100;
-  if (m >= 8) return 70 + (m - 8) * 60;
-  if (m >= 6) return 40 + (m - 6) * 15;
-  return m * (40 / 6);
-}
-
-const C_U15 = 5.1;
-
-const LOADS: Record<string, { squat: number; dead: number; push: number }> = {
-  "1": { squat: 0.25, dead: 0.3, push: 0 },
-  "2": { squat: 0.33, dead: 0.4, push: 5 },
-  "3": { squat: 0.4, dead: 0.5, push: 10 },
-};
-
-const NORM = { vertMax: 90, veloMax: 170, sprintBest: 1.2, sprintWorst: 2.2 };
 const AXES = ["스쿼트", "데드리프트", "푸쉬업", "버티컬", "최고 구속", "스프린트"];
 
 function Radar({ values }: { values: (number | null)[] }) {
@@ -174,32 +125,27 @@ export default function SbiPage() {
     const sSquat = nSquat === null ? null : clamp100(scoreSquat(nSquat));
     const sDead = nDead === null ? null : clamp100(scoreDead(nDead));
     const sPush = nPush === null ? null : clamp100(scorePush(nPush));
-    const avg = sSquat !== null && sDead !== null && sPush !== null ? (sSquat + sDead + sPush) / 3 : null;
+    const avg = sSquat !== null && sDead !== null && sPush !== null ? strengthAvg(sSquat, sDead, sPush) : null;
 
     let sbiRaw: number | null = null;
     if (avg !== null && nVert !== null && nVelo !== null && nSprint !== null && nSprint > 0) {
-      sbiRaw = ((avg + nVert + nVelo) / (nSprint * 10)) * C_U15;
+      sbiRaw = sbiRawOf(avg, nVert, nVelo, nSprint);
     }
     const sbi = sbiRaw === null ? null : clamp100(sbiRaw);
 
     // SMI
-    const brakePct = h !== null && h > 0 && nLand !== null ? (nLand / h) * 100 : null;
-    const accelPct = nUpper !== null && nUpper > 0 && nFull !== null ? (nFull / nUpper) * 100 : null;
+    const brakePct = h !== null && h > 0 && nLand !== null ? brakePctOf(nLand, h) : null;
+    const accelPct = nUpper !== null && nUpper > 0 && nFull !== null ? accelPctOf(nFull, nUpper) : null;
     const sBrake = brakePct === null ? null : clamp100(scoreBrake(brakePct));
     const sAccel = accelPct === null ? null : clamp100(scoreAccel(accelPct));
     const sElbow = nElbow === null ? null : clamp100(scoreElbowM2(nElbow));
-    const smi =
-      sBrake !== null && sAccel !== null && sElbow !== null
-        ? clamp100((sBrake + sAccel + sElbow) / 3)
-        : null;
+    const smi = sBrake !== null && sAccel !== null && sElbow !== null ? smiOf(sBrake, sAccel, sElbow) : null;
 
-    const finalR =
-      sbi !== null && smi !== null ? clamp100(sbi / 2 + smi / 2) : null;
+    const finalR = sbi !== null && smi !== null ? finalROf(sbi, smi) : null;
 
-    const normVert = nVert === null ? null : clamp100((nVert / NORM.vertMax) * 100);
-    const normVelo = nVelo === null ? null : clamp100((nVelo / NORM.veloMax) * 100);
-    const normSprint =
-      nSprint === null ? null : clamp100(((NORM.sprintWorst - nSprint) / (NORM.sprintWorst - NORM.sprintBest)) * 100);
+    const normVert = nVert === null ? null : normVertOf(nVert);
+    const normVelo = nVelo === null ? null : normVeloOf(nVelo);
+    const normSprint = nSprint === null ? null : normSprintOf(nSprint);
 
     const warn =
       nVelo !== null &&
@@ -336,7 +282,7 @@ export default function SbiPage() {
               })}
             </div>
             <div className="faint xs mt12">
-              U15 기준 · C = 5.1 · 팔꿈치 폄 Method 2
+              U15 기준 · C = {C_U15} · 팔꿈치 폄 Method 2
             </div>
             <div className="faint xs mono mt4">R = SBI/2 + SMI/2</div>
             {canSave && savedMetrics && (
