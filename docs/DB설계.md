@@ -53,7 +53,7 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 
 ---
 
-## 3. 테이블 (18개)
+## 3. 테이블 (24개 — 처음 18개에서 `training_slots`·`events`를 빼고 3-4의 8개 추가, 2026-11-21)
 
 공통: `id uuid` 기본값 `gen_random_uuid()`, 시각은 `timestamptz`, 모든 테이블 RLS 켬. `team_id`가 있는 자식 테이블은 트리거로 부모(선수·경기)의 팀과 같은지 검사해 **다른 팀 선수 id를 끼워 넣는 것**을 막는다.
 
@@ -106,6 +106,9 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | position | text check (`투수`,`포수`,`내야수`,`외야수`) | |
 | back_number | smallint check 0~99 | |
 | grade | smallint check 1~3 | 학년 |
+| position_detail | text check (`투수`,`포수`,`1루수`,`2루수`,`3루수`,`유격수`,`좌익수`,`중견수`,`우익수`) | 【11월 추가】 세부 포지션. `position`은 여기서 유도(투수·포수·내야수·외야수) — 둘이 어긋나지 않게 트리거로 맞춤 |
+| throws | text check (`우`,`좌`) | 【11월 추가】 던지는 손 |
+| bats | text check (`우`,`좌`,`양`) | 【11월 추가】 치는 방향 |
 | status | text check (`active`,`archived`) default `active` | 활동 / 보관 |
 | archived_reason | text check (`졸업`,`이적`,`기타`) | 보관 사유 |
 | archived_at | timestamptz | |
@@ -248,6 +251,8 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | id | uuid PK | |
 | team_id | uuid → teams | |
 | game_date | date | |
+| game_type | text check (`정식`,`연습`) default `정식` | 【11월 추가】 올해 성적을 합산/정식/연습으로 나눠 봄 |
+| scheduled_game_id | uuid → scheduled_games, null 허용 | 【11월 추가】 월간 일정의 경기와 연결(있으면) |
 | opponent | text | |
 | score_for · score_against | smallint ≥ 0 | |
 | result | text generated (점수 비교로 승·패·무) | 지금처럼 자동 판정, 서버가 계산 |
@@ -259,6 +264,7 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | game_id | uuid → games on delete cascade | |
 | player_id | uuid → players on delete **restrict** | 보관 선수 기록 유지 |
 | ab · hits · hr · rbi · sb | smallint ≥ 0 | check: hits ≤ ab, hr ≤ hits |
+| doubles · triples · runs · bb · so | smallint ≥ 0 default 0 | 【11월 추가】 2루타·3루타·득점·볼넷(사구 포함)·삼진. check: doubles + triples + hr ≤ hits, so ≤ ab |
 
 키: PK(game_id, player_id) → 같은 선수 중복 금지(지금 화면 검사를 DB도 강제).
 
@@ -269,6 +275,7 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | player_id | uuid → players on delete restrict | |
 | outs | smallint ≥ 0 | 【확정 15】 잡은 아웃 수(5⅓이닝 = 16). 입력·표시는 ⅓ 단위(5.1 = 5⅓, 5.2 = 5⅔, 소수 첫째 자리 3 이상은 입력 오류), 변환은 화면에서 |
 | er · so · bb | smallint ≥ 0 | |
+| hits | smallint ≥ 0 default 0 | 【11월 추가】 피안타 |
 
 키: PK(game_id, player_id).
 
@@ -277,8 +284,12 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 |---|---|---|
 | id | uuid PK | |
 | team_id | uuid → teams | |
+| scheduled_game_id | uuid → scheduled_games, null 허용 | 【11월 추가】 null = 정식 경기 기본 라인업, 값이 있으면 그 경기 전용 라인업 |
+| use_dh | boolean default false | 【11월 추가】 지명타자 사용 |
+| memo | text | 【11월 추가】 선수단 전달 사항 |
+| published | boolean default false | 【11월 추가】 false = 코치만 보는 작성 중. 선수·학부모는 published 행만 읽음(RLS) |
 | saved_by | uuid → profiles | |
-| saved_at | timestamptz | 팀의 최신 행 = 현재 라인업 |
+| saved_at | timestamptz | (team_id, scheduled_game_id)별 최신 행 = 현재 라인업 |
 
 **lineup_slots — 라인업 자리**
 | 컬럼 | 타입 | 설명 |
@@ -286,9 +297,91 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | lineup_id | uuid → lineups on delete cascade | |
 | slot | text check (`선발투수`,`1번`~`9번`) | |
 | player_id | uuid → players on delete cascade | |
+| field_pos | text check (세부 포지션 9개 + `지명타자`) | 【11월 추가】 타순 자리의 수비 위치. `선발투수` 행은 null |
 
-키: PK(lineup_id, slot), unique(lineup_id, player_id) → 한 선수 한 자리. 선발투수는 `position='투수'`인지 트리거로 검사.
+키: PK(lineup_id, slot), unique(lineup_id, player_id) → 한 선수 한 자리. 선발투수는 `position='투수'`인지 트리거로 검사. 지명타자를 안 쓰면 `선발투수` 행 없이 타순 중 `field_pos='투수'`가 선발.
 저장할 때마다 새 `lineups` 행 → 이력이 남는다(지금은 덮어씀). 저장 전 "추천 라인업"은 저장하지 않고 화면에서 계산(7장).
+
+### 3-4. 11월 로컬 기능 보강 (2026-11-21)
+
+11월 로컬 시연용으로 만든 기능(선수 특이사항·출석·훈련 공지·월간 일정)을 서버로 옮기기 위한 테이블. 앞의 `training_slots`(주간 훈련 일정)·`events`(다가오는 일정)는 화면에서 빠지고 아래 `daily_notices`·`scheduled_games`가 대신한다 → **2단계에서 만들지 않음.**
+
+**player_notes — 선수 특이사항(재활·부상 등)**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| player_id | uuid PK → players on delete cascade | 선수당 현재 상태 1행 |
+| kind | text check (`정상`,`재활`,`부상`,`휴식`,`기타`) | `정상`이면 화면에 표시 안 함 |
+| note | text | |
+| return_date | date | 복귀 예정일 → "복귀 D-n" |
+| updated_by · updated_at | | 감독·코치만 쓰기 |
+
+**attendance — 출석**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid PK | |
+| team_id | uuid → teams | |
+| player_id | uuid → players on delete cascade | |
+| att_date | date | |
+| status | text check (`출석`,`지각`,`결석`,`사유결석`) | 【확정 24】 |
+| note | text | |
+| source | text check (`선수`,`코치`) | 선수 본인 체크 / 코치 수정 |
+| checked_by · checked_at | uuid · timestamptz | |
+
+키: unique(player_id, att_date). RLS: 선수 본인(학부모 제외 여부는 미정)은 자기 행만 insert/update, 감독·코치는 팀 전체 수정. 출석률 = (출석+지각) ÷ (기록한 날 − 사유결석) 은 화면 계산.
+미정(2단계 2 전): 체크 가능 시간 제한, 지각 자동 판정, 미체크를 결석으로 칠지.
+
+**daily_notices — 훈련 공지(날짜별)**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid PK | |
+| team_id | uuid → teams | |
+| notice_date | date | unique(team_id, notice_date) |
+| off | boolean default false | 휴식일 |
+| meet_time · place · bring · message | text | 집합 시각·장소·준비물·전달 사항 |
+| updated_by · updated_at | | |
+
+**notice_items — 공지 시간표**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid PK | |
+| notice_id | uuid → daily_notices on delete cascade | |
+| start_time · end_time | time | |
+| grp | text check (`전체`,`투수조`,`야수조`) | |
+| title | text not null | |
+| detail · place | text | |
+| sort | smallint | |
+
+**tournaments — 대회**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid PK | |
+| team_id | uuid → teams | |
+| name · place | text | |
+| start_date · end_date | date | check end ≥ start |
+
+**scheduled_games — 월간 일정의 경기(예정)**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| id | uuid PK | |
+| team_id | uuid → teams | |
+| game_date | date | |
+| game_time | time | |
+| kind | text check (`연습경기`,`정식대회`) | 결과 입력 시 `games.game_type`(연습/정식)으로 이어짐 |
+| opponent · place | text | |
+| tournament_id | uuid → tournaments, null 허용 | |
+| round | text | 1회전, 8강 등 |
+
+**month_directions · direction_items — 월간 훈련 방향**
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| month_directions: team_id · month(`YYYY-MM`) | PK(team_id, month) | |
+| month_directions: theme | text | 이달의 주제 |
+| direction_items: id · team_id · month | uuid · → month_directions | |
+| direction_items: grp · text · done · sort | | 조별 할 일과 완료 표시 |
+
+**측정 센터 지도** — 시연용 가짜 데이터(`src/lib/centers.ts`). 서버 범위에 넣을지 태규님 결정 대기, 넣지 않으면 2단계 10에서 화면 제거 또는 시연 표시 유지.
+
+권한 요약(5장에 추가할 내용): 위 테이블 모두 팀 경계 강제. 쓰기는 감독·코치(공지·일정·특이사항·출석 수정), 출석 본인 체크만 선수. 야구부장·선수·학부모는 읽기(특이사항의 `note`를 선수·학부모에게 보여줄지는 화면 기준 그대로: 본인 것만).
 
 ---
 
@@ -558,13 +651,13 @@ erDiagram
 | # | 단위 | 끝났을 때 확인 |
 |---|---|---|
 | 1 | Supabase 프로젝트 준비: 프로젝트·Resend SMTP(전용 도메인, 이 단계 전에 결정)·메일 템플릿(쿼리 방식)·리다이렉트 주소, 앱에 `@supabase/supabase-js`와 환경 변수(`VITE_SUPABASE_URL`·`ANON_KEY`) | 앱 빌드 성공, 연결만 하고 화면 동작은 그대로 |
-| 2 | 마이그레이션 ①: 테이블 18개·키·제약·트리거(팀 일치·측정 값 검사·결과 자동 판정) + `metric_items` 34행 | SQL 편집기 적용 후 REST로 테이블 확인, 잘못된 값(다른 팀 선수, 범위 밖 값, 중복 등번호) 넣기가 거부되는지 |
+| 2 | 마이그레이션 ①: 테이블 24개(3-4 포함)·키·제약·트리거(팀 일치·측정 값 검사·결과 자동 판정) + `metric_items` 34행 | SQL 편집기 적용 후 REST로 테이블 확인, 잘못된 값(다른 팀 선수, 범위 밖 값, 중복 등번호) 넣기가 거부되는지 |
 | 3 | 마이그레이션 ②: 판단 함수·RLS 정책·`create_team`·가입 코드 함수 3개·`team_ranking()` + 되돌리기 SQL | DO 블록으로 역할 6개를 흉내 내 5장 표대로 읽기·쓰기 결과 확인(전부 롤백). 야구부장: 선수 등록·보관·코드 발급은 성공, 측정·피드백·경기·라인업 쓰기는 거부 |
 | 4 | 예시 팀 seed SQL 생성·적용 | 팀·선수 12·측정 60행·SBI 12행·경기 3 수, 몇 선수의 점수가 지금 데모와 같은지 |
 | 5 | 로그인·가입·이메일 인증·비밀번호 찾기 화면(Supabase Auth), 관리자 표시 | 실제 메일로 가입→인증→로그인→로그아웃→비번 재설정, 틀린 비번 문구가 하나 |
 | 6 | 가입 코드: 관리자 팀 만들기·감독·야구부장 코드, 감독·야구부장의 코치 코드, 선수 등록 시 본인·학부모 코드 2개·재발급 | 다른 기기에서 코드로 가입, 만료·재사용·재발급 전 코드가 거부되는지, 같은 관계 두 번째 연결 거부, 두 번째 야구부장 가입 거부, 코치 화면에 코드 0건 |
 | 7 | 읽기 전환: 모든 화면이 Supabase에서 읽음(`store.tsx` 대체) | 선수·코치 각 화면이 4의 데이터로 지금과 같은 값 표시, 두 기기에서 같은 데이터 |
-| 8 | 쓰기 전환: 측정 저장·SBI 저장(이력)·선수 등록/수정/보관·피드백·훈련 일정·경기 등록/삭제·라인업 저장(이력) | 한 기기에서 쓰고 다른 기기에서 보임, 두 탭 동시 저장 시 서로 지우지 않음, 경기에 나온 선수 삭제 거부·보관 동작 |
+| 8 | 쓰기 전환: 측정 저장·SBI 저장(이력)·선수 등록/수정/보관·피드백·훈련 공지·월간 일정·출석·특이사항·경기 등록/삭제·라인업 저장(이력) | 한 기기에서 쓰고 다른 기기에서 보임, 두 탭 동시 저장 시 서로 지우지 않음, 경기에 나온 선수 삭제 거부·보관 동작 |
 | 9 | 점수 서버 함수(`api/scores.ts`)·`player_scores`·순위·추천 라인업 전환 | 선수 토큰으로 REST 조회 시 다른 선수 측정·신체 점수가 0건, 순위 숫자가 7과 같음, 측정 저장 후 점수 갱신 |
 | 10 | 데모 기능·localStorage 제거(8장 표) | 로그인 화면에 데모 표시 없음, 브라우저 저장소에 `sptr-db-v2` 없음 |
 | 11 | 역할별 REST 점검(sportir 방식): 역할 6개 토큰으로 금지된 읽기·쓰기 시도 | 5장 표와 전부 일치. 야구부장 토큰의 기록 쓰기·코치 토큰의 가입 코드 읽기가 거부되는지 포함 |

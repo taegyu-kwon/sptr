@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { BrandMark } from "../components/icons";
+import { FieldArtwork } from "../components/ClubArtwork";
 import { Notice, Seg } from "../components/ui";
 
 export default function Auth() {
@@ -46,20 +47,24 @@ export default function Auth() {
       <aside className="auth-side">
         <div className="top">
           <BrandMark />
-          <span className="wordmark">SPTR<i>.</i></span>
+          <span className="wordmark">sptr<i>.</i></span><span className="auth-edition">THE CLUBHOUSE</span>
         </div>
-        <div>
-          <h1 className="big">SPTR<i>.</i></h1>
-          <p className="tag">계약된 팀 전용 유소년 야구 성장 관리 플랫폼</p>
+        <div className="auth-story">
+          <span className="auth-eyebrow">FOR THE LOVE OF THE GAME</span>
+          <h1 className="auth-headline">GREAT TEAMS.<br /><em>START HERE.</em></h1>
+          <p className="auth-caption">좋은 팀의 시작, 함께 성장하는 매일.</p>
+          <p className="auth-description">선수의 가능성을 발견하고, 팀의 다음 경기를 준비하는 곳.<br />당신의 야구를 위한 하나의 클럽하우스.</p>
+          <FieldArtwork />
         </div>
         <div className="foot">
-          <span>© 2026 SPTR</span>
+          <span>BASEBALL, BETTER TOGETHER.</span><span>© {new Date().getFullYear()} SPTR</span>
         </div>
       </aside>
 
       <div className="auth-main">
         <div className="auth-card">
-          <h2 className="auth-title">{mode === "login" ? "로그인" : "회원가입"}</h2>
+          <span className="auth-eyebrow">WELCOME TO YOUR CLUBHOUSE</span>
+          <h2 className="auth-title">{mode === "login" ? "다시 만나 반가워요." : "팀과 함께 시작하세요"}</h2>
           <p className="auth-sub">
             {mode === "login"
               ? "이메일과 비밀번호를 입력하세요."
@@ -115,12 +120,12 @@ export default function Auth() {
               </>
             )}
             <div className="field">
-              <label>이메일</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" />
+              <label htmlFor="auth-email">이메일</label>
+              <input id="auth-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoComplete="email" />
             </div>
             <div className="field">
-              <label>비밀번호</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
+              <label htmlFor="auth-password">비밀번호</label>
+              <input id="auth-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="6자 이상" required autoComplete={mode === "login" ? "current-password" : "new-password"} />
             </div>
 
             {error && <Notice kind="error">{error}</Notice>}

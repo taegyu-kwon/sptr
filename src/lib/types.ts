@@ -1,6 +1,15 @@
 export type Role = "player" | "coach";
 export type Position = "투수" | "포수" | "내야수" | "외야수";
 export type PlayerKind = "투수" | "야수";
+/** 세부 포지션 — 명단 필터(투수/내야/외야/포수)와 상세 화면에 쓴다 */
+export type PositionDetail =
+  | "투수" | "포수"
+  | "1루수" | "2루수" | "3루수" | "유격수"
+  | "좌익수" | "중견수" | "우익수";
+export type ThrowHand = "우" | "좌";
+export type BatHand = "우" | "좌" | "양";
+/** 경기 구분 */
+export type GameType = "정식" | "연습";
 
 export interface BodyData {
   age: number;
@@ -64,8 +73,38 @@ export interface Player {
   position: Position;
   backNumber: number;
   grade: number; // 학년
+  /** 세부 포지션. 예전 데이터에는 없을 수 있음 → playerPositionDetail()로 읽는다 */
+  positionDetail?: PositionDetail;
+  throws?: ThrowHand; // 던지는 손
+  bats?: BatHand; // 치는 방향
   records: Snapshot[];
   sbiMetrics?: SbiMetrics;
+  /** 특이사항(재활·부상 등). 없거나 "정상"이면 표시하지 않는다 */
+  status?: PlayerStatus;
+}
+
+export type PlayerStatusKind = "정상" | "재활" | "부상" | "휴식" | "기타";
+
+export interface PlayerStatus {
+  kind: PlayerStatusKind;
+  note?: string;
+  returnDate?: string; // 복귀 예정일 ISO
+}
+
+export type AttendanceStatus = "출석" | "지각" | "결석" | "사유결석";
+
+/** 훈련일 출석 — 선수·날짜당 하나 */
+export interface AttendanceRecord {
+  id: string;
+  teamId: string;
+  playerId: string;
+  date: string; // YYYY-MM-DD
+  status: AttendanceStatus;
+  note?: string;
+  /** 체크·수정한 시각 ISO */
+  checkedAt?: string;
+  /** 누가 기록했나 — 선수 본인 체크 / 코치 수정 */
+  source?: "선수" | "코치";
 }
 
 export interface Team {
@@ -100,20 +139,29 @@ export interface BattingLine {
   hr: number;
   rbi: number;
   sb: number;
+  /* 아래는 나중에 추가된 항목 — 예전 기록에는 없을 수 있어 0으로 본다 */
+  doubles?: number; // 2루타
+  triples?: number; // 3루타
+  runs?: number; // 득점
+  bb?: number; // 볼넷(사구 포함)
+  so?: number; // 삼진
 }
 
 export interface PitchingLine {
   playerId: string;
-  ip: number;
+  ip: number; // ⅓ 단위 표기: 5.1 = 5⅓이닝, 5.2 = 5⅔이닝
   er: number;
   so: number;
   bb: number;
+  hits?: number; // 피안타 (예전 기록에는 없을 수 있음)
 }
 
 export interface GameRecord {
   id: string;
   teamId: string;
   date: string;
+  /** 정식경기 / 연습경기. 예전 기록에는 없을 수 있음 → gameTypeOf()로 읽는다 */
+  type?: GameType;
   opponent: string;
   scoreFor: number;
   scoreAgainst: number;
@@ -122,10 +170,29 @@ export interface GameRecord {
   pitching: PitchingLine[];
 }
 
+/** 라인업에서 맡는 수비 위치. 지명타자는 수비에 나가지 않는다 */
+export type LineupPos = PositionDetail | "지명타자";
+
+export interface LineupBatter {
+  playerId: string;
+  pos: LineupPos;
+}
+
+/** 정식 경기 라인업 — 팀 기본 1개 + 경기별 전용(선택) */
 export interface SavedLineup {
+  id: string;
   teamId: string;
+  /** null = 정식 경기 기본 라인업. 값이 있으면 월간 일정(sptr-schedule-v1) 경기 id의 전용 라인업 */
+  gameId: string | null;
+  /** 지명타자 사용. 쓰면 투수는 타순 밖(pitcherId), 안 쓰면 타순 중 "투수"가 선발 투수 */
+  useDH: boolean;
+  order: (LineupBatter | null)[]; // 1~9번
+  pitcherId: string | null; // useDH일 때만 의미
+  memo: string; // 선수단 전달 사항
+  /** false면 코치만 보는 작성 중 상태 */
+  published: boolean;
   updatedAt: string;
-  slots: Record<string, string>; // 슬롯 키("선발투수", "1번"~"9번") -> playerId
+  author: string;
 }
 
 export interface UpcomingEvent {
@@ -165,4 +232,5 @@ export interface DB {
   lineups: SavedLineup[];
   events: UpcomingEvent[];
   codes: SignupCode[];
+  attendance: AttendanceRecord[];
 }

@@ -1,0 +1,154 @@
+/* ================================================================
+   훈련 공지 · 월간 일정 전용 스타일 — 토큰만 사용.
+   ================================================================ */
+.mt0 { margin-top: 0; }
+.icon-btn.flip svg { transform: scaleX(-1); }
+.check-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--fg-2); cursor: pointer; }
+.check-row input { accent-color: var(--brand); width: 16px; height: 16px; }
+
+/* 그룹 태그 */
+.tag { display: inline-flex; align-items: center; height: 20px; padding: 0 7px; border-radius: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.tag.violet { background: var(--violet-soft); color: var(--violet); }
+.tag.info { background: var(--info-soft); color: var(--info); }
+.tag.good { background: var(--good-soft); color: var(--good); }
+
+/* ---------- 주간 날짜 줄 ---------- */
+.wk-strip-wrap { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 8px; align-items: center; }
+.wk-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wk-day {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 9px 0 8px; border-radius: var(--r-md); border: 1px solid transparent;
+  background: var(--surface); color: var(--fg-2); font: inherit; cursor: pointer; min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+.wk-day:hover { background: var(--surface-2); }
+.wk-day .dow { font-size: 11.5px; color: var(--fg-3); }
+.wk-day .num { font-size: 18px; font-weight: 700; color: var(--fg); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.wk-day .mark { height: 6px; display: flex; }
+.wk-day.today { border-color: var(--line-2); }
+.wk-day.today .dow { color: var(--brand); font-weight: 600; }
+.wk-day.on { background: var(--brand); border-color: var(--brand); }
+.wk-day.on .dow, .wk-day.on .num { color: var(--brand-ink); }
+.wk-day.on .mark i { box-shadow: 0 0 0 1.5px var(--brand-ink); }
+.mark i, .wk-legend i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.m-train { background: var(--fg-2); }
+.m-game { background: var(--info); }
+.m-cup { background: var(--warn); }
+.m-off { background: var(--fg-4); }
+.wk-legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 10px 0 0 44px; }
+.wk-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.wk-legend .link-btn { margin-left: auto; }
+
+/* ---------- 공지 머리 ---------- */
+.notice-head .section { margin-top: 0; }
+.notice-date { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; margin: 6px 0 0; }
+.notice-facts { display: grid; grid-template-columns: 1fr 1.4fr 2fr; gap: 10px; margin-top: 18px; }
+.notice-facts > div { background: var(--surface-2); border-radius: var(--r-md); padding: 12px 14px; min-width: 0; }
+.notice-facts .label { display: block; font-size: 11.5px; color: var(--fg-3); margin-bottom: 4px; }
+.notice-facts b { font-size: 15px; font-weight: 600; word-break: keep-all; }
+.off-day { margin-top: 16px; padding: 18px; border-radius: var(--r-md); background: var(--surface-2); }
+.off-day b { font-size: 18px; }
+.off-day p { margin: 6px 0 0; color: var(--fg-2); font-size: 13.5px; }
+@media (max-width: 640px) {
+  .notice-facts { grid-template-columns: 1fr 1fr; }
+  .notice-facts .wide { grid-column: 1 / -1; }
+  .notice-date { font-size: 22px; }
+  .wk-strip-wrap { grid-template-columns: 28px minmax(0, 1fr) 28px; gap: 4px; }
+  .wk-strip { gap: 4px; }
+  .wk-day .num { font-size: 16px; }
+  .wk-legend { margin-left: 0; }
+}
+
+/* ---------- 시간표 ---------- */
+.tl { display: flex; flex-direction: column; gap: 8px; }
+.tl-lanes { display: grid; grid-template-columns: 64px 1fr 1fr; gap: 10px; padding: 0 0 2px; justify-items: start; }
+.tl-row { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.tl-time { display: flex; flex-direction: column; padding-top: 12px; font-variant-numeric: tabular-nums; }
+.tl-time b { font-size: 15px; font-weight: 700; }
+.tl-time span { font-size: 12px; color: var(--fg-3); }
+.tl-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tl-lane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tl-none { height: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; border: 1px dashed var(--line-2); border-radius: var(--r-md); font-size: 12px; color: var(--fg-3); }
+.tl-item { position: relative; background: var(--surface); border-radius: var(--r-md); padding: 12px 14px 13px; border-left: 3px solid var(--fg-4); min-width: 0; height: 100%; }
+.tl-item.g-violet { border-left-color: var(--violet); }
+.tl-item.g-info { border-left-color: var(--info); }
+.tl-item.g-good { border-left-color: var(--good); }
+.tl-item-head { display: flex; align-items: center; gap: 8px; }
+.tl-item-time { font-size: 11.5px; color: var(--fg-3); font-variant-numeric: tabular-nums; }
+.tl-title { font-size: 15px; font-weight: 600; margin-top: 7px; word-break: keep-all; }
+.tl-detail { font-size: 13px; color: var(--fg-2); margin-top: 3px; word-break: keep-all; }
+.tl-rm { position: absolute; top: 8px; right: 8px; }
+@media (min-width: 641px) { .tl-row .tl-item-time { display: none; } }
+@media (max-width: 640px) {
+  .tl-row { grid-template-columns: 1fr; gap: 0; }
+  .tl-time { display: none; }
+  .tl-split { grid-template-columns: 1fr; gap: 8px; }
+  .tl-none { display: none; }
+}
+
+/* ---------- 월간 요약 ---------- */
+.sch-top { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 12px; }
+.sch-top > .panel + .panel { margin-top: 0; }
+.cup-dday { font-size: 44px; font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; margin-top: 10px; color: var(--brand); font-variant-numeric: tabular-nums; }
+.cup-dday.sm { font-size: 30px; color: var(--fg); }
+.cup-dday small { font-size: 14px; font-weight: 600; color: var(--fg-3); margin-left: 4px; letter-spacing: 0; }
+.cup-name { font-size: 17px; font-weight: 700; margin-top: 8px; letter-spacing: -0.02em; word-break: keep-all; }
+.cup-name.sm { font-size: 15px; }
+.sch-top .sub { font-size: 12.5px; color: var(--fg-3); margin-top: 6px; }
+.cup-games { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+@media (max-width: 900px) {
+  .sch-top { grid-template-columns: 1fr 1fr; }
+  .cup-card { grid-column: 1 / -1; }
+}
+
+/* ---------- 달력 ---------- */
+.cal-title { font-size: 18px; font-weight: 700; margin: 0 4px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal-dow { font-size: 11.5px; color: var(--fg-3); text-align: center; padding: 4px 0; }
+.cal-dow.sun { color: var(--bad); } .cal-dow.sat { color: var(--info); }
+.cal-cell {
+  position: relative; min-height: 92px; min-width: 0; padding: 7px 7px 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left;
+  background: var(--surface); border: 1px solid transparent; border-radius: 10px;
+  font: inherit; color: var(--fg); cursor: pointer; transition: background 0.12s, border-color 0.12s;
+}
+.cal-cell:hover { background: var(--surface-2); }
+.cal-cell.out { opacity: 0.35; }
+.cal-cell.cup { background: linear-gradient(180deg, var(--warn-soft), transparent 70%), var(--surface); }
+.cal-cell.sel { border-color: var(--brand-line); }
+.cal-num { font-size: 12.5px; font-weight: 600; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.cal-num.sun { color: var(--bad); } .cal-num.sat { color: var(--info); }
+.cal-cell.today .cal-num { display: inline-flex; align-self: flex-start; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); margin: -2px 0 -1px -3px; }
+.cal-cup { font-size: 10.5px; font-weight: 700; color: var(--warn); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 5px; border-radius: 5px; min-width: 0; }
+.cal-ev .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.cal-ev.info { background: var(--info-soft); color: var(--info); }
+.cal-ev.warn { background: var(--warn-soft); color: var(--warn); }
+.cal-tr { font-size: 10.5px; color: var(--fg-3); margin-top: auto; }
+.cal-tr.off { color: var(--fg-4); }
+.sel-day .card-head { margin-bottom: 6px; }
+.row.past { opacity: 0.5; }
+@media (max-width: 640px) {
+  .cal { gap: 2px; }
+  .cal-cell { min-height: 54px; padding: 5px 3px; align-items: center; gap: 3px; }
+  .cal-cell.today .cal-num { margin: -2px 0 -1px; align-self: center; }
+  .cal-cup, .cal-tr { display: none; }
+  .cal-ev { padding: 0; background: none !important; }
+  .cal-ev .t { display: none; }
+  .cal-ev .dot { width: 6px; height: 6px; }
+}
+
+/* ---------- 훈련 방향 ---------- */
+.dir-theme { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; word-break: keep-all; }
+.dir-progress { height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.dir-progress i { display: block; height: 100%; background: var(--brand); border-radius: inherit; transition: width 0.3s var(--ease); }
+.dir-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.dir-list li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.dir-list li:first-child { border-top: 0; }
+.dir-list label { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; cursor: pointer; font-size: 13.5px; line-height: 1.45; }
+.dir-list input { accent-color: var(--brand); width: 16px; height: 16px; margin: 2px 0 0; flex-shrink: 0; }
+.dir-list input:disabled { cursor: default; opacity: 1; }
+.dir-list li.done .txt { color: var(--fg-3); text-decoration: line-through; text-decoration-color: var(--fg-4); }
+.dir-add { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 8px; margin-top: 14px; }
+@media (max-width: 480px) { .dir-add { grid-template-columns: 1fr auto; } .dir-add select { grid-column: 1 / -1; } }

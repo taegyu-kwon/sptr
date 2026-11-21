@@ -1,0 +1,35 @@
+/* ================================================================
+   출석 화면 전용 스타일 — 토큰만 사용.
+   ================================================================ */
+
+/* 날짜 고르기 줄 */
+.att-date { display: flex; align-items: center; gap: 6px; }
+.att-date .input { width: auto; min-width: 150px; }
+.att-date .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* 그날 일정 칩 */
+.att-day { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.att-day .pill { max-width: 100%; white-space: normal; line-height: 1.6; overflow-wrap: anywhere; }
+
+/* 학년 패널 사이 간격 */
+.att-grade + .att-grade { margin-top: 16px; }
+
+.att-tbl td { padding-top: 8px; padding-bottom: 8px; }
+.att-tbl .seg { white-space: nowrap; }
+.att-tbl .att-note { min-width: 140px; }
+
+/* 최근 기록에서 지금 열린 날짜 */
+.tbl tr.att-on td { background: var(--surface-2); }
+.tbl tr.att-on td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+
+/* 미체크 선수 */
+.att-unchecked { display: flex; gap: 6px; flex-wrap: wrap; }
+.att-tbl tr.att-miss td { color: var(--fg-3); }
+
+/* ---------- 선수 출석 체크 ---------- */
+.att-check { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 12px 0 4px; text-align: center; }
+.att-check .btn.att-big { min-width: 220px; height: 56px; font-size: 18px; font-weight: 700; border-radius: 14px; }
+.att-check .att-done { font-size: 18px; font-weight: 700; color: var(--good); display: flex; align-items: center; gap: 8px; }
+.att-check .att-done svg { width: 22px; height: 22px; }
+.att-report { width: 100%; max-width: 480px; text-align: left; }
+.att-count .warn-text { color: var(--warn); }

@@ -1,17 +1,25 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { latest } from "../../lib/gpe";
 import PlayerReport from "../../components/PlayerReport";
+import PlayerSbiCard from "../../components/PlayerSbiCard";
+import SeasonStats from "../../components/SeasonStats";
 import { fmtDate } from "../../lib/format";
-import type { Position } from "../../lib/types";
+import { POSITION_DETAILS, handLabel, playerPositionDetail } from "../../lib/roster";
+import { gamesInYear } from "../../lib/stats";
+import type { BatHand, PlayerStatusKind, PositionDetail, ThrowHand } from "../../lib/types";
+import { STATUS_KINDS, statusLabel } from "../../lib/status";
+import { todayISO } from "../../lib/schedule";
+import AttendanceCard from "../../components/AttendanceCard";
 import { Cell, Cells, Notice, PageHead, Section } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import "../../styles/roster.css";
 
 const signed = (v: number) => `${v >= 0 ? "+" : ""}${v}`;
-const POSITIONS: Position[] = ["투수", "포수", "내야수", "외야수"];
 const GRADES = [1, 2, 3];
+const THROWS: ThrowHand[] = ["우", "좌"];
+const BATS: BatHand[] = ["우", "좌", "양"];
 
 export default function PlayerDetailPage() {
   const { id } = useParams();
@@ -21,9 +29,14 @@ export default function PlayerDetailPage() {
 
   const [edit, setEdit] = useState(false);
   const [name, setName] = useState("");
-  const [position, setPosition] = useState<Position>("투수");
+  const [positionDetail, setPositionDetail] = useState<PositionDetail>("투수");
+  const [throws, setThrows] = useState<ThrowHand>("우");
+  const [bats, setBats] = useState<BatHand>("우");
   const [backNumber, setBackNumber] = useState("");
   const [grade, setGrade] = useState("1");
+  const [statusKind, setStatusKind] = useState<PlayerStatusKind>("정상");
+  const [statusNote, setStatusNote] = useState("");
+  const [returnDate, setReturnDate] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -39,6 +52,14 @@ export default function PlayerDetailPage() {
 
   const s = latest(player);
   const injury = s.body.injuryHistory.trim();
+  const year = new Date().getFullYear();
+  const seasonGames = useMemo(
+    () => gamesInYear(db.games.filter(g => g.teamId === player.teamId), year),
+    [db.games, player.teamId, year]
+  );
+  const hand = handLabel(player);
+  const statusText = statusLabel(player, todayISO());
+  const attRecords = db.attendance.filter(a => a.playerId === player.id && a.date.startsWith(String(year)));
 
   const teammates = db.players.filter(p => p.teamId === player.teamId);
   const code = db.codes.find(c => c.teamId === player.teamId && c.playerName === player.name);
@@ -46,9 +67,14 @@ export default function PlayerDetailPage() {
 
   const openEdit = () => {
     setName(player.name);
-    setPosition(player.position);
+    setPositionDetail(player.positionDetail ?? (player.position === "내야수" ? "유격수" : player.position === "외야수" ? "중견수" : player.position));
+    setThrows(player.throws ?? "우");
+    setBats(player.bats ?? "우");
     setBackNumber(String(player.backNumber));
     setGrade(String(player.grade));
+    setStatusKind(player.status?.kind ?? "정상");
+    setStatusNote(player.status?.note ?? "");
+    setReturnDate(player.status?.returnDate ?? "");
     setError(null);
     setConfirmDel(false);
     setEdit(true);
@@ -73,7 +99,15 @@ export default function PlayerDetailPage() {
     const dup = teammates.find(p => p.id !== player.id && p.backNumber === bn);
     if (dup) return setError(`등번호 ${bn}번은 ${dup.name} 선수가 쓰고 있습니다. 다른 번호를 입력하세요.`);
 
-    updatePlayer(player.id, { name: trimmed, position, backNumber: bn, grade: Number(grade) });
+    const status =
+      statusKind === "정상"
+        ? null
+        : {
+            kind: statusKind,
+            ...(statusNote.trim() ? { note: statusNote.trim() } : {}),
+            ...(returnDate ? { returnDate } : {}),
+          };
+    updatePlayer(player.id, { name: trimmed, positionDetail, throws, bats, backNumber: bn, grade: Number(grade), status });
     setError(null);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -86,14 +120,22 @@ export default function PlayerDetailPage() {
         <div>
           <div className="profile-name">{player.name}</div>
           <div className="profile-meta">
-            <span>{player.position}</span>
-            <span className="sep" />
             <span>{player.grade}학년</span>
+            <span className="sep" />
+            <span>{playerPositionDetail(player)}{player.positionDetail && player.position !== player.positionDetail ? ` (${player.position})` : ""}</span>
+            <span className="sep" />
+            <span>{hand ?? "투타 미입력"}</span>
             <span className="sep" />
             <span>측정 {player.records.length}회</span>
             <span className="sep" />
             <span>최근 {fmtDate(s.date)}</span>
           </div>
+          {statusText && (
+            <div className="profile-chips">
+              <span className="pill warn">{statusText}</span>
+              {player.status?.note && player.status.kind !== "기타" && <span className="small dim">{player.status.note}</span>}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex gap8 wrap end">
@@ -119,8 +161,20 @@ export default function PlayerDetailPage() {
             </div>
             <div className="field">
               <label>포지션</label>
-              <select value={position} onChange={e => setPosition(e.target.value as Position)}>
-                {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+              <select value={positionDetail} onChange={e => setPositionDetail(e.target.value as PositionDetail)}>
+                {POSITION_DETAILS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>던지는 손</label>
+              <select value={throws} onChange={e => setThrows(e.target.value as ThrowHand)}>
+                {THROWS.map(h => <option key={h} value={h}>{h}투</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>치는 방향</label>
+              <select value={bats} onChange={e => setBats(e.target.value as BatHand)}>
+                {BATS.map(h => <option key={h} value={h}>{h}타</option>)}
               </select>
             </div>
             <div className="field">
@@ -133,9 +187,33 @@ export default function PlayerDetailPage() {
                 {GRADES.map(g => <option key={g} value={String(g)}>{g}학년</option>)}
               </select>
             </div>
+            <div className="field">
+              <label>특이사항</label>
+              <select value={statusKind} onChange={e => setStatusKind(e.target.value as PlayerStatusKind)}>
+                {STATUS_KINDS.map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>메모</label>
+              <input
+                value={statusNote}
+                onChange={e => setStatusNote(e.target.value)}
+                placeholder="예: 팔꿈치 통증, 송구 제한"
+                disabled={statusKind === "정상"}
+              />
+            </div>
+            <div className="field">
+              <label>복귀 예정일</label>
+              <input
+                type="date"
+                value={returnDate}
+                onChange={e => setReturnDate(e.target.value)}
+                disabled={statusKind === "정상"}
+              />
+            </div>
             <div className="field span-all">
               <span className="help">
-                이름을 바꾸면 가입 코드에 적힌 선수 이름과 연결된 계정 이름도 함께 바뀝니다.
+                특이사항을 "정상"으로 두면 메모와 복귀 예정일은 지워집니다. 이름을 바꾸면 가입 코드에 적힌 선수 이름과 연결된 계정 이름도 함께 바뀝니다.
               </span>
             </div>
           </div>
@@ -182,14 +260,20 @@ export default function PlayerDetailPage() {
     <>
       {edit && editSection}
 
-      <Section title="신체·실전 요약">
+      <SeasonStats player={player} games={seasonGames} year={year} />
+
+      <Section title="출석" meta={`${year}년 · 선수 본인 체크 + 코치 수정`}>
+        <AttendanceCard records={attRecords} empty="올해 출석 기록이 없습니다." />
+      </Section>
+
+      <Section title="신체 정보" meta={`측정일 ${fmtDate(s.date)}`}>
         <div className="panel sub">
           <Cells n={4}>
             <Cell
-              label="신장 / 체중"
+              label="나이 / 신장 / 체중"
               size="md"
-              value={<>{s.body.height}<span className="unit">cm</span> / {s.body.weight}<span className="unit">kg</span></>}
-              sub={`골격근 ${s.body.skeletalMuscle}kg · 체지방 ${s.body.bodyFat}% · 윙스팬 ${s.body.wingspan}cm`}
+              value={<>{s.body.age}<span className="unit">세</span> · {s.body.height}<span className="unit">cm</span> / {s.body.weight}<span className="unit">kg</span></>}
+              sub={`골격근 ${s.body.skeletalMuscle}kg · 체지방 ${s.body.bodyFat}% · 윙스팬 ${s.body.wingspan}cm · 다리 ${s.body.legLength}cm`}
             />
             <Cell
               label="최근 1년 성장"
@@ -212,6 +296,10 @@ export default function PlayerDetailPage() {
             />
           </Cells>
         </div>
+      </Section>
+
+      <Section title="SBI / SMI" meta="U15 측정 지표">
+        <PlayerSbiCard player={player} />
       </Section>
 
       <Section title="계정">

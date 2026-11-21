@@ -1,53 +1,52 @@
 /* ================================================================
-   SPTR — design system v2
-   검정 캔버스 위에 테두리 없는 톤 패널. 색은 데이터에만, 라임 하나.
-   화면마다 주인공 하나(큰 숫자·링)를 세우고 나머지는 실선과 여백으로 받친다.
+   SPTR — team workspace
+   밝은 클럽하우스 표면 위에 코발트 강조. 공통 토큰은 모든 역할의 화면에서 공유한다.
    ================================================================ */
 :root {
   /* 캔버스 · 표면 */
-  --bg: #000000;
-  --surface: #0e0e11;
-  --surface-2: #17171b;
-  --surface-3: #202026;
-  --surface-4: #2b2b32;
-  --line: rgba(255, 255, 255, 0.07);
-  --line-2: rgba(255, 255, 255, 0.12);
-  --edge: rgba(255, 255, 255, 0.05);
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f3f6;
+  --surface-3: #e7ecf1;
+  --surface-4: #dce3eb;
+  --line: #e9edf1;
+  --line-2: #d7dfe8;
+  --edge: #e9edf1;
 
   /* 글자 */
-  --fg: #f5f5f6;
-  --fg-2: #a0a0a8;
-  --fg-3: #67676f;
-  --fg-4: #3a3a41;
+  --fg: #1d2c3c;
+  --fg-2: #5c6c7c;
+  --fg-3: #64748b;
+  --fg-4: #9caaba;
 
   /* 브랜드 */
-  --brand: #c9f542;
-  --brand-hover: #d8fb66;
-  --brand-ink: #0b0e00;
-  --brand-soft: rgba(201, 245, 66, 0.12);
-  --brand-line: rgba(201, 245, 66, 0.4);
+  --brand: #3659df;
+  --brand-hover: #2747be;
+  --brand-ink: #ffffff;
+  --brand-soft: #edf1ff;
+  --brand-line: #a8b9fa;
 
   /* 의미색 */
-  --good: #5fd88f;   --good-soft: rgba(95, 216, 143, 0.12);   --good-line: rgba(95, 216, 143, 0.32);
-  --warn: #f3b74b;   --warn-soft: rgba(243, 183, 75, 0.12);   --warn-line: rgba(243, 183, 75, 0.32);
-  --bad: #f2645f;    --bad-soft: rgba(242, 100, 95, 0.12);    --bad-line: rgba(242, 100, 95, 0.32);
-  --info: #6fb3ff;   --info-soft: rgba(111, 179, 255, 0.12);  --info-line: rgba(111, 179, 255, 0.32);
-  --violet: #b59cff; --violet-soft: rgba(181, 156, 255, 0.12); --violet-line: rgba(181, 156, 255, 0.32);
+  --good: #218164;   --good-soft: #e8f5ee;   --good-line: rgba(95, 216, 143, 0.32);
+  --warn: #a8651f;   --warn-soft: #fff3e2;   --warn-line: rgba(243, 183, 75, 0.32);
+  --bad: #c74c4c;    --bad-soft: #fceeee;    --bad-line: rgba(242, 100, 95, 0.32);
+  --info: #3c76b8;   --info-soft: #eaf3fd;  --info-line: rgba(111, 179, 255, 0.32);
+  --violet: #7954b8; --violet-soft: #f1ecfa; --violet-line: rgba(181, 156, 255, 0.32);
 
   /* 등급 */
-  --grade-S: #c9f542;
-  --grade-A: #5fd88f;
-  --grade-B: #6fb3ff;
-  --grade-C: #f3b74b;
-  --grade-D: #f2645f;
+  --grade-S: #3659df;
+  --grade-A: #218164;
+  --grade-B: #3c76b8;
+  --grade-C: #a8651f;
+  --grade-D: #c74c4c;
 
   /* 차트 */
-  --chart-1: #f5f5f6;
-  --chart-2: #6fb3ff;
-  --chart-3: #5fd88f;
-  --chart-4: #b59cff;
-  --chart-5: #f3b74b;
-  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-1: #3659df;
+  --chart-2: #3c76b8;
+  --chart-3: #218164;
+  --chart-4: #7954b8;
+  --chart-5: #b47a39;
+  --chart-grid: #e4eaf0;
 
   /* 모양 */
   --r-sm: 8px;
@@ -55,8 +54,8 @@
   --r-lg: 18px;
   --r-xl: 24px;
   --radius: 10px; /* 하위 호환 */
-  --maxw: 1120px;
-  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line-2);
+  --maxw: 1280px;
+  --shadow-pop: 0 12px 40px rgba(29, 44, 60, 0.1), 0 0 0 1px var(--line-2);
 
   --mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -65,7 +64,7 @@
 /* ---------- 기본 ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-html { color-scheme: dark; }
+html { color-scheme: light; }
 
 body {
   margin: 0;

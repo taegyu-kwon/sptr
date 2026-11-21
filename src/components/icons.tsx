@@ -23,6 +23,9 @@ function I({ children, ...rest }: P) {
 }
 
 export const Icon = {
+  Search: (p: P) => (
+    <I {...p}><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></I>
+  ),
   Menu: (p: P) => (
     <I {...p}><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></I>
   ),
@@ -37,6 +40,12 @@ export const Icon = {
   ),
   ChevronRight: (p: P) => (
     <I {...p}><path d="m9 18 6-6-6-6" /></I>
+  ),
+  ChevronUp: (p: P) => (
+    <I {...p}><path d="m18 15-6-6-6 6" /></I>
+  ),
+  ChevronDown: (p: P) => (
+    <I {...p}><path d="m6 9 6 6 6-6" /></I>
   ),
   Check: (p: P) => (
     <I {...p}><path d="M20 6 9 17l-5-5" /></I>
@@ -100,12 +109,15 @@ export const Icon = {
   Clipboard: (p: P) => (
     <I {...p}><rect width="8" height="4" x="8" y="2" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" /></I>
   ),
+  MapPin: (p: P) => (
+    <I {...p}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></I>
+  ),
   Timer: (p: P) => (
     <I {...p}><path d="M10 2h4" /><path d="M12 14v-4" /><circle cx="12" cy="14" r="8" /></I>
   ),
 };
 
-/* 브랜드 마크 — 라임 사각형 안의 다이아몬드(내야) */
+/* 브랜드 마크 — 브랜드색 사각형 안의 다이아몬드(내야) */
 export function BrandMark({ className = "brand-mark" }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 28 28" aria-hidden="true">

@@ -1,13 +1,14 @@
-import type { Player, PlayerKind, Position, Snapshot, SignupCode } from "./types";
+import type { BatHand, Player, PlayerKind, Position, PositionDetail, Snapshot, SignupCode, ThrowHand } from "./types";
 import { r1 } from "./format";
 
 /** 선수 등록 시 코치가 입력하는 항목 */
 export interface NewPlayerInput {
   name: string;
-  position: Position;
+  positionDetail: PositionDetail;
+  throws: ThrowHand;
+  bats: BatHand;
   backNumber: number;
   grade: number;
-  kind: PlayerKind;
   age: number;
   height: number; // cm
   weight: number; // kg
@@ -15,13 +16,49 @@ export interface NewPlayerInput {
 
 export const today = () => new Date().toISOString().slice(0, 10);
 
+/* ---------- 포지션 · 투타 ---------- */
+
+export const POSITION_DETAILS: PositionDetail[] = [
+  "투수", "포수", "1루수", "2루수", "3루수", "유격수", "좌익수", "중견수", "우익수",
+];
+
+/** 세부 포지션 → 큰 포지션(투수·포수·내야수·외야수). 훈련 일정·라인업이 큰 포지션을 쓴다 */
+export function groupOf(d: PositionDetail): Position {
+  if (d === "투수" || d === "포수") return d;
+  if (d === "좌익수" || d === "중견수" || d === "우익수") return "외야수";
+  return "내야수";
+}
+
+/** 투수 / 야수 */
+export const kindOf = (d: PositionDetail): PlayerKind => (d === "투수" ? "투수" : "야수");
+
+/** 세부 포지션이 없는 예전 선수는 큰 포지션 기준으로 대신한다(내야수 → "내야수") */
+export const playerPositionDetail = (p: Player): PositionDetail | Position => p.positionDetail ?? p.position;
+
+/** "우투좌타" 형식. 정보가 없으면 null */
+export function handLabel(p: Player): string | null {
+  if (!p.throws || !p.bats) return null;
+  return `${p.throws}투${p.bats}타`;
+}
+
+/** 명단 필터 */
+export type RosterFilter = "전체" | "투수" | "야수" | "내야수" | "외야수" | "포수";
+export const ROSTER_FILTERS: RosterFilter[] = ["전체", "투수", "야수", "내야수", "외야수", "포수"];
+
+export function matchesFilter(p: Player, f: RosterFilter): boolean {
+  if (f === "전체") return true;
+  if (f === "야수") return p.position !== "투수";
+  return p.position === f;
+}
+
 /**
  * 새 선수의 첫 측정 기록.
  * 측정 기록이 하나도 없으면 능력치 계산이 동작하지 않으므로, 코치가 입력한 기본 항목은 그대로 쓰고
  * 나머지는 U15 평균 수준의 기본값으로 채운다. 이후 선수가 '데이터 입력'에서 실측값으로 갱신한다.
  */
 export function makeInitialSnapshot(input: NewPlayerInput): Snapshot {
-  const { age, height, weight, kind } = input;
+  const { age, height, weight } = input;
+  const kind = kindOf(input.positionDetail);
   return {
     date: today(),
     body: {

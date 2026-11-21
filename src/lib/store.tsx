@@ -1,9 +1,14 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { DB, User, Snapshot, SbiMetrics, GameRecord, Player, Position } from "./types";
+import type {
+  AttendanceRecord, AttendanceStatus, BatHand, DB, User, Snapshot, SbiMetrics, GameRecord, Player, PlayerStatus, PositionDetail, ThrowHand,
+} from "./types";
 import { buildSeed } from "./seed";
-import { makeInitialSnapshot, nextPlayerCode, type NewPlayerInput } from "./roster";
+import { groupOf, makeInitialSnapshot, nextPlayerCode, type NewPlayerInput } from "./roster";
+import { migrateLineups } from "./lineup";
+import { todayISO } from "./schedule";
 
-const DB_KEY = "sptr-db-v2";
+// v3: 학년별 24명 명단·세부 포지션·투타·시즌 경기(정식/연습) 예시 데이터로 바뀌어 새 키로 시작한다
+const DB_KEY = "sptr-db-v3";
 const SESSION_KEY = "sptr-session-v1";
 
 function loadDB(): DB {
@@ -18,6 +23,23 @@ function loadDB(): DB {
           if (p.sbiMetrics) return p;
           const sp = seed.players.find(x => x.id === p.id);
           return sp?.sbiMetrics ? { ...p, sbiMetrics: sp.sbiMetrics } : p;
+        });
+        localStorage.setItem(DB_KEY, JSON.stringify(parsed));
+      }
+      // 라인업: 예전 "선발투수 + 1~9번" 형식 → 타순·수비 위치 형식. 하나도 없으면 예시 기본 라인업을 넣는다
+      const needLineup = !parsed.lineups?.length || parsed.lineups.some(l => !Array.isArray((l as { order?: unknown }).order));
+      if (needLineup) {
+        parsed.lineups = parsed.lineups?.length ? migrateLineups(parsed.lineups, parsed.players) : buildSeed().lineups;
+        localStorage.setItem(DB_KEY, JSON.stringify(parsed));
+      }
+      // 출석·특이사항이 생기기 전 저장본 → 시드의 예시 출석·특이사항으로 보강(남아 있는 선수만)
+      if (!Array.isArray(parsed.attendance)) {
+        const seed = buildSeed();
+        const ids = new Set(parsed.players.map(p => p.id));
+        parsed.attendance = seed.attendance.filter(a => ids.has(a.playerId));
+        parsed.players = parsed.players.map(p => {
+          const sp = seed.players.find(x => x.id === p.id);
+          return !p.status && sp?.status ? { ...p, status: sp.status } : p;
         });
         localStorage.setItem(DB_KEY, JSON.stringify(parsed));
       }
@@ -48,7 +70,20 @@ interface StoreCtx {
   addPlayer: (teamId: string, input: NewPlayerInput) => { playerId: string; code: string };
   updatePlayer: (
     playerId: string,
-    patch: { name?: string; position?: Position; backNumber?: number; grade?: number }
+    patch: {
+      name?: string; positionDetail?: PositionDetail; throws?: ThrowHand; bats?: BatHand;
+      backNumber?: number; grade?: number;
+      /** null이면 특이사항을 지운다 */
+      status?: PlayerStatus | null;
+    }
+  ) => void;
+  /** 선수 본인 출석 체크·지각/결석 신고(오늘만). 같은 날 본인 기록은 덮어쓴다. 실패하면 사유 문구 */
+  checkIn: (playerId: string, teamId: string, date: string, status: AttendanceStatus, note?: string) => string | null;
+  /** 코치 출석 수정 — 넘긴 선수만 덮어쓴다. status가 null이면 그 선수 기록을 지워 미체크로 */
+  saveAttendance: (
+    teamId: string,
+    date: string,
+    rows: { playerId: string; status: AttendanceStatus | null; note?: string }[]
   ) => void;
   /** 선수와 연결된 계정·피드백·라인업·시합 기록까지 함께 정리 */
   removePlayer: (playerId: string) => void;
@@ -154,7 +189,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           id: playerId,
           name: input.name.trim(),
           teamId,
-          position: input.position,
+          position: groupOf(input.positionDetail),
+          positionDetail: input.positionDetail,
+          throws: input.throws,
+          bats: input.bats,
           backNumber: input.backNumber,
           grade: input.grade,
           records: [makeInitialSnapshot(input)],
@@ -177,9 +215,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 ? {
                     ...p,
                     name: nextName || p.name,
-                    position: patch.position ?? p.position,
+                    position: patch.positionDetail ? groupOf(patch.positionDetail) : p.position,
+                    positionDetail: patch.positionDetail ?? p.positionDetail,
+                    throws: patch.throws ?? p.throws,
+                    bats: patch.bats ?? p.bats,
                     backNumber: patch.backNumber ?? p.backNumber,
                     grade: patch.grade ?? p.grade,
+                    status: patch.status === undefined ? p.status : patch.status ?? undefined,
                   }
                 : p
             ),
@@ -197,6 +239,47 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           };
         });
       },
+      checkIn: (playerId, teamId, date, status, note) => {
+        if (!user) return "로그인이 필요합니다.";
+        if (user.role === "player" && user.playerId !== playerId) return "본인 출석만 체크할 수 있습니다.";
+        if (date !== todayISO()) return "출석 체크는 오늘 날짜만 할 수 있습니다.";
+        const rec: AttendanceRecord = {
+          id: `at-${date}-${playerId}`,
+          teamId,
+          playerId,
+          date,
+          status,
+          ...(note?.trim() ? { note: note.trim() } : {}),
+          checkedAt: new Date().toISOString(),
+          source: "선수",
+        };
+        setDB(prev => ({
+          ...prev,
+          attendance: [...prev.attendance.filter(a => !(a.playerId === playerId && a.date === date)), rec],
+        }));
+        return null;
+      },
+      saveAttendance: (teamId, date, rows) => {
+        if (user?.role !== "coach") return;
+        const now = new Date().toISOString();
+        const ids = new Set(rows.map(r => r.playerId));
+        const records: AttendanceRecord[] = rows
+          .filter(r => r.status !== null)
+          .map(r => ({
+            id: `at-${date}-${r.playerId}`,
+            teamId,
+            playerId: r.playerId,
+            date,
+            status: r.status!,
+            ...(r.note?.trim() ? { note: r.note.trim() } : {}),
+            checkedAt: now,
+            source: "코치",
+          }));
+        setDB(prev => ({
+          ...prev,
+          attendance: [...prev.attendance.filter(a => !(a.date === date && ids.has(a.playerId))), ...records],
+        }));
+      },
       removePlayer: playerId => {
         setDB(prev => {
           const target = prev.players.find(p => p.id === playerId);
@@ -205,12 +288,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             players: prev.players.filter(p => p.id !== playerId),
             users: prev.users.filter(u => u.playerId !== playerId),
             feedbacks: prev.feedbacks.filter(f => f.playerId !== playerId),
+            attendance: prev.attendance.filter(a => a.playerId !== playerId),
             codes: target
               ? prev.codes.filter(c => !(c.playerName === target.name && c.teamId === target.teamId))
               : prev.codes,
             lineups: prev.lineups.map(l => ({
               ...l,
-              slots: Object.fromEntries(Object.entries(l.slots).filter(([, pid]) => pid !== playerId)),
+              order: l.order.map(b => (b?.playerId === playerId ? null : b)),
+              pitcherId: l.pitcherId === playerId ? null : l.pitcherId,
             })),
             games: prev.games.map(g => ({
               ...g,

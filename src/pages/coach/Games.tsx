@@ -2,10 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../lib/store";
 import { Cell, Cells, Empty, Medal, Notice, PageHead } from "../../components/ui";
 import { Icon } from "../../components/icons";
-import { fmtDate, r1 } from "../../lib/format";
+import { fmtDate } from "../../lib/format";
 import { today } from "../../lib/roster";
-import { battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, pitchingTotalsByPlayer } from "../../lib/stats";
-import type { BattingLine, PitchingLine } from "../../lib/types";
+import {
+  GAME_TYPE_LABEL, battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, fmtIp, gameTypeOf, isValidIp,
+  pitchingTotalsByPlayer,
+} from "../../lib/stats";
+import type { BattingLine, GameType, PitchingLine } from "../../lib/types";
 import "../../styles/coach.css";
 import "../../styles/games.css";
 
@@ -53,6 +56,7 @@ export default function GamesPage() {
   const newKey = () => `r${++seq.current}`;
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(today());
+  const [gameType, setGameType] = useState<GameType>("정식");
   const [opponent, setOpponent] = useState("");
   const [scoreFor, setScoreFor] = useState("");
   const [scoreAgainst, setScoreAgainst] = useState("");
@@ -70,6 +74,7 @@ export default function GamesPage() {
 
   const resetForm = () => {
     setDate(today());
+    setGameType("정식");
     setOpponent("");
     setScoreFor("");
     setScoreAgainst("");
@@ -155,7 +160,7 @@ export default function GamesPage() {
       else seenPit.push(r.playerId);
 
       const ip = numOf(r.ip);
-      if (!Number.isFinite(ip) || ip < 0) errs.push(`${tag}의 '이닝' 값은 0 이상 숫자로 입력합니다.`);
+      if (!isValidIp(ip)) errs.push(`${tag}의 '이닝'은 ⅓ 단위로 입력합니다. 5⅓이닝은 5.1, 5⅔이닝은 5.2로 적습니다.`);
 
       const cells: [string, string][] = [["자책", r.er], ["탈삼진", r.so], ["볼넷", r.bb]];
       for (const [label, raw] of cells) {
@@ -180,11 +185,12 @@ export default function GamesPage() {
     }));
     const pitching: PitchingLine[] = pitRows.map(r => ({
       playerId: r.playerId,
-      ip: r1(numOf(r.ip)), er: numOf(r.er), so: numOf(r.so), bb: numOf(r.bb),
+      ip: Math.round(numOf(r.ip) * 10) / 10, er: numOf(r.er), so: numOf(r.so), bb: numOf(r.bb),
     }));
 
     addGame(teamId, {
       date,
+      type: gameType,
       opponent: opponent.trim(),
       scoreFor: sfNum,
       scoreAgainst: saNum,
@@ -219,7 +225,7 @@ export default function GamesPage() {
   const pitTotals = useMemo(
     () =>
       [...pitchingTotalsByPlayer(games).entries()].map(([playerId, s]) => ({
-        playerId, ...s, ip: r1(s.ip), era: eraOf(s.er, s.ip) ?? 0,
+        playerId, ...s, era: eraOf(s.er, s.ip) ?? 0,
       })),
     [games]
   );
@@ -295,6 +301,13 @@ export default function GamesPage() {
               <div className="field">
                 <label htmlFor="game-date">경기 날짜</label>
                 <input id="game-date" type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div className="field">
+                <label htmlFor="game-type">경기 구분</label>
+                <select id="game-type" value={gameType} onChange={e => setGameType(e.target.value as GameType)}>
+                  <option value="정식">정식경기</option>
+                  <option value="연습">연습경기</option>
+                </select>
               </div>
               <div className="field">
                 <label htmlFor="game-opp">상대 팀</label>
@@ -404,7 +417,7 @@ export default function GamesPage() {
                             ))}
                           </select>
                         </div>
-                        <NumField id={`pit-${r.key}-ip`} label="이닝" value={r.ip} step="0.1" onChange={v => patchPit(r.key, { ip: v })} />
+                        <NumField id={`pit-${r.key}-ip`} label="이닝(.1=⅓)" value={r.ip} step="0.1" onChange={v => patchPit(r.key, { ip: v })} />
                         <NumField id={`pit-${r.key}-er`} label="자책" value={r.er} onChange={v => patchPit(r.key, { er: v })} />
                         <NumField id={`pit-${r.key}-so`} label="탈삼진" value={r.so} onChange={v => patchPit(r.key, { so: v })} />
                         <NumField id={`pit-${r.key}-bb`} label="볼넷" value={r.bb} onChange={v => patchPit(r.key, { bb: v })} />
@@ -470,7 +483,7 @@ export default function GamesPage() {
                   </div>
                   <div className="opp">
                     vs {g.opponent}
-                    <small>{fmtDate(g.date)}</small>
+                    <small>{fmtDate(g.date)} · {GAME_TYPE_LABEL[gameTypeOf(g)]}</small>
                   </div>
                   <div className="right">
                     <span className={`pill ${resultPill(g.result)}`}>{g.result}</span>
@@ -542,7 +555,7 @@ export default function GamesPage() {
                             {g.pitching.map(p => (
                               <tr key={p.playerId}>
                                 <td className="name">{nameOf(p.playerId)}</td>
-                                <td className="num">{p.ip}</td>
+                                <td className="num">{fmtIp(p.ip)}</td>
                                 <td className="num">{p.er}</td>
                                 <td className="num">{p.so}</td>
                                 <td className="num">{p.bb}</td>
@@ -609,7 +622,7 @@ export default function GamesPage() {
                     {[...pitTotals].sort((a, b) => (a.ip > 0 ? 0 : 1) - (b.ip > 0 ? 0 : 1) || a.era - b.era).map(r => (
                       <tr key={r.playerId}>
                         <td className="name">{nameOf(r.playerId)}</td>
-                        <td className="num">{r.ip}</td>
+                        <td className="num">{fmtIp(r.ip)}</td>
                         <td className="num">{r.er}</td>
                         <td className="num"><b>{r.ip > 0 ? fmtEra(r.era) : "-"}</b></td>
                         <td className="num">{r.so}</td>
