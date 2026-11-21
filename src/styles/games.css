@@ -58,3 +58,4 @@
 }
 .game-summary:hover { color: var(--fg-2); text-decoration: underline; text-underline-offset: 3px; }
 .game-more { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 16px; }
+.game-totals-next { margin-top: 18px; }

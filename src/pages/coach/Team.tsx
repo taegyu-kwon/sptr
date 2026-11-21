@@ -14,7 +14,7 @@ const REL_LABEL: Record<Relation, string> = { self: "본인", parent: "학부모
 
 /** 만료일 안내 — "2026-12-05까지 (14일 남음)" */
 function expiryText(c: SignupCode, today: string): string {
-  if (!c.expiresAt) return "만료일 없음 (예시 코드)";
+  if (!c.expiresAt) return "만료일 없음 (예전 코드)";
   const left = daysBetween(today, c.expiresAt);
   return `${c.expiresAt}까지 (${left === 0 ? "오늘 만료" : `${left}일 남음`})`;
 }

@@ -565,7 +565,7 @@ function GameForm({
           </div>
           <div className="field">
             <label htmlFor="sg-opp">상대 팀</label>
-            <input id="sg-opp" value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="예: 분당고" required />
+            <input id="sg-opp" value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="예: 강동고" required />
           </div>
           <div className="field">
             <label htmlFor="sg-place">장소</label>
@@ -629,7 +629,7 @@ function CupForm({
         <div className="form-grid cols-2">
           <div className="field span-all">
             <label htmlFor="cup-name">대회 이름</label>
-            <input id="cup-name" value={name} onChange={e => setName(e.target.value)} placeholder="예: 경기도 추계 리그" required />
+            <input id="cup-name" value={name} onChange={e => setName(e.target.value)} placeholder="예: 서울 추계 고교 리그" required />
           </div>
           <div className="field">
             <label htmlFor="cup-start">시작일</label>
@@ -641,7 +641,7 @@ function CupForm({
           </div>
           <div className="field span-all">
             <label htmlFor="cup-place">장소</label>
-            <input id="cup-place" value={place} onChange={e => setPlace(e.target.value)} placeholder="예: 수원 야구장" />
+            <input id="cup-place" value={place} onChange={e => setPlace(e.target.value)} placeholder="예: 목동 야구장" />
           </div>
         </div>
         <div className="flex gap8 wrap mt16">

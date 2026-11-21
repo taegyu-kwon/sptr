@@ -1,4 +1,4 @@
-import type { BatHand, Player, PlayerKind, Position, PositionDetail, Snapshot, SignupCode, ThrowHand } from "./types";
+import type { BatHand, Player, PlayerKind, Position, PositionDetail, Snapshot, ThrowHand } from "./types";
 import { r1 } from "./format";
 
 /** 선수 등록 시 코치가 입력하는 항목 */
@@ -58,8 +58,8 @@ export function matchesFilter(p: Player, f: RosterFilter): boolean {
 
 /**
  * 새 선수의 첫 측정 기록.
- * 측정 기록이 하나도 없으면 능력치 계산이 동작하지 않으므로, 코치가 입력한 기본 항목은 그대로 쓰고
- * 나머지는 U15 평균 수준의 기본값으로 채운다. 이후 선수가 '데이터 입력'에서 실측값으로 갱신한다.
+ * 측정 기록이 하나도 없으면 능력치 계산이 동작하지 않으므로, 코치가 등록할 때 입력한 나이·키·몸무게는 그대로 쓰고
+ * 나머지는 임시 기본값으로 채운다. 이후 감독·코치가 선수 상세의 '측정 기록 추가'에서 실측값으로 갱신한다(선수는 보기만).
  */
 export function makeInitialSnapshot(input: NewPlayerInput): Snapshot {
   const { age, height, weight } = input;
@@ -106,14 +106,4 @@ export function nextBackNumber(players: Player[], teamId: string): number {
   let n = 1;
   while (used.has(n)) n += 1;
   return n;
-}
-
-/** SPTR-PLAYER-01 형식의 다음 가입 코드 */
-export function nextPlayerCode(codes: SignupCode[]): string {
-  const nums = codes
-    .map(c => /^SPTR-PLAYER-(\d+)$/.exec(c.code)?.[1])
-    .filter((x): x is string => !!x)
-    .map(Number);
-  const next = (nums.length ? Math.max(...nums) : 0) + 1;
-  return `SPTR-PLAYER-${String(next).padStart(2, "0")}`;
 }

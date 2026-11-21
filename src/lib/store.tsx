@@ -3,7 +3,7 @@ import type {
   AttendanceRecord, AttendanceStatus, BatHand, DB, User, Snapshot, SbiMetrics, GameRecord, Player, PlayerStatus, PositionDetail, ThrowHand,
 } from "./types";
 import { buildSeed } from "./seed";
-import { groupOf, makeInitialSnapshot, nextPlayerCode, type NewPlayerInput } from "./roster";
+import { groupOf, makeInitialSnapshot, type NewPlayerInput } from "./roster";
 import { migrateLineups } from "./lineup";
 import { resetSchedule, todayISO } from "./schedule";
 import type { ArchiveReason, SignupCode, Team } from "./types";
@@ -11,7 +11,8 @@ import { accountOfPlayer, checkSignupCode, codesOfPlayer, newCodeDates, randomCo
 
 // v3: 학년별 24명 명단·세부 포지션·투타·시즌 경기(정식/연습) 예시 데이터로 바뀌어 새 키로 시작한다
 // v4: 예시 데이터 날짜를 오늘 기준으로 만들고 상대팀·대회명을 고교 기준으로 바꿔 새 키로 시작한다
-const DB_KEY = "sptr-db-v4";
+// v5: 예시 시합 기록이 월간 일정의 지난 경기와 연결되고, 예시 가입 코드에 발급일·만료일이 생겨 새 키로 시작한다
+const DB_KEY = "sptr-db-v5";
 const SESSION_KEY = "sptr-session-v1";
 
 function loadDB(): DB {
@@ -80,8 +81,6 @@ interface StoreCtx {
   addSbiMetrics: (playerId: string, metrics: SbiMetrics) => void;
   /** SBI/SMI 이력 1건 삭제 — index는 sbiHistory(없으면 [sbiMetrics]) 배열 위치 */
   deleteSbiMetrics: (playerId: string, index: number) => void;
-  /** SBI/SMI 측정 원자료 저장(선수당 최신 1건) */
-  saveSbiMetrics: (playerId: string, metrics: SbiMetrics) => void;
   /** 시합 기록 추가 — 결과(승/패/무)는 점수로 계산한다 */
   addGame: (teamId: string, game: Omit<GameRecord, "id" | "teamId" | "result">) => void;
   /** 시합 기록 수정 — 결과(승/패/무)는 점수로 다시 계산한다 */
@@ -106,8 +105,6 @@ interface StoreCtx {
     date: string,
     rows: { playerId: string; status: AttendanceStatus | null; note?: string }[]
   ) => void;
-  /** 선수와 연결된 계정·피드백·라인업·시합 기록까지 함께 정리 */
-  removePlayer: (playerId: string) => void;
   /** 보관된 선수까지 포함한 전체 선수. db.players는 활동 선수만 담는다 — 지난 기록의 이름 표시·보관 목록에만 쓴다 */
   allPlayers: Player[];
   /** 선수 보관(졸업·이적·기타) — 명단·순위·라인업·출석에서 빠지고 계정 로그인이 막힌다. 지난 기록은 남는다 */
@@ -260,12 +257,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }),
         }));
       },
-      saveSbiMetrics: (playerId, metrics) => {
-        setDB(prev => ({
-          ...prev,
-          players: prev.players.map(p => (p.id === playerId ? { ...p, sbiMetrics: metrics } : p)),
-        }));
-      },
       addGame: (teamId, game) => {
         const result: GameRecord["result"] =
           game.scoreFor > game.scoreAgainst ? "승" : game.scoreFor < game.scoreAgainst ? "패" : "무";
@@ -381,31 +372,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           ...prev,
           attendance: [...prev.attendance.filter(a => !(a.date === date && ids.has(a.playerId))), ...records],
         }));
-      },
-      removePlayer: playerId => {
-        setDB(prev => {
-          const target = prev.players.find(p => p.id === playerId);
-          return {
-            ...prev,
-            players: prev.players.filter(p => p.id !== playerId),
-            users: prev.users.filter(u => u.playerId !== playerId),
-            feedbacks: prev.feedbacks.filter(f => f.playerId !== playerId),
-            attendance: prev.attendance.filter(a => a.playerId !== playerId),
-            codes: target
-              ? prev.codes.filter(c => !(c.playerName === target.name && c.teamId === target.teamId))
-              : prev.codes,
-            lineups: prev.lineups.map(l => ({
-              ...l,
-              order: l.order.map(b => (b?.playerId === playerId ? null : b)),
-              pitcherId: l.pitcherId === playerId ? null : l.pitcherId,
-            })),
-            games: prev.games.map(g => ({
-              ...g,
-              batting: g.batting.filter(b => b.playerId !== playerId),
-              pitching: g.pitching.filter(p => p.playerId !== playerId),
-            })),
-          };
-        });
       },
       allPlayers: db.players,
       archivePlayer: (playerId, reason) => {

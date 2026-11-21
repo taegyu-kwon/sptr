@@ -3,7 +3,7 @@ import { useStore } from "../../lib/store";
 import PlayerReport from "../../components/PlayerReport";
 import { latest } from "../../lib/gpe";
 import { fmtDate } from "../../lib/format";
-import { battingAvg, eraOf, fmtAvg, fmtEra, playerBattingTotals, playerPitchingTotals } from "../../lib/stats";
+import { battingAvg, eraOf, fmtAvg, fmtEra, fmtIp, gamesInYear, playerBattingTotals, playerPitchingTotals } from "../../lib/stats";
 import { Section, Cells, Cell } from "../../components/ui";
 
 export default function StatsPage() {
@@ -13,14 +13,16 @@ export default function StatsPage() {
   const snap = latest(player);
   const isPitcher = snap.practical.kind === "투수";
 
+  const year = new Date().getFullYear();
   const season = useMemo(() => {
-    const games = db.games.filter(g => g.teamId === player.teamId);
+    // 올해 경기만 — 코치 화면(선수 상세·시합 기록)의 시즌 성적과 같은 기준
+    const games = gamesInYear(db.games.filter(g => g.teamId === player.teamId), year);
     return {
       bat: playerBattingTotals(games, player.id),
       pit: playerPitchingTotals(games, player.id),
       games: games.length,
     };
-  }, [db.games, player.id, player.teamId]);
+  }, [db.games, player.id, player.teamId, year]);
 
   const avgV = battingAvg(season.bat.hits, season.bat.ab);
   const eraV = eraOf(season.pit.er, season.pit.ip);
@@ -30,7 +32,7 @@ export default function StatsPage() {
   const seasonCells: { k: string; v: React.ReactNode; unit?: string }[] = isPitcher
     ? [
         { k: "ERA", v: era },
-        { k: "이닝", v: season.pit.ip > 0 ? season.pit.ip.toFixed(1) : "-" },
+        { k: "이닝", v: season.pit.outs > 0 ? fmtIp(season.pit.ip) : "-" },
         { k: "탈삼진", v: season.pit.so, unit: "K" },
         { k: "볼넷", v: season.pit.bb, unit: "BB" },
         { k: "타율", v: avg },
@@ -77,7 +79,7 @@ export default function StatsPage() {
         </div>
       </Section>
 
-      <Section title="2026 시즌" meta={`팀 ${season.games}경기 · ${isPitcher ? "투수" : "야수"} 기록`}>
+      <Section title={`${year} 시즌`} meta={`팀 ${season.games}경기 · ${isPitcher ? "투수" : "야수"} 기록`}>
         <div className="panel sub">
           <Cells n={5}>
             {seasonCells.map(c => (

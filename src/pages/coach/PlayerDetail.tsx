@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { evaluate, latest } from "../../lib/gpe";
 import PlayerReport from "../../components/PlayerReport";
@@ -8,7 +8,8 @@ import SeasonStats from "../../components/SeasonStats";
 import { fmtDate } from "../../lib/format";
 import { POSITION_DETAILS, handLabel, playerPositionDetail } from "../../lib/roster";
 import { gamesInYear } from "../../lib/stats";
-import type { BatHand, PlayerStatusKind, PositionDetail, ThrowHand } from "../../lib/types";
+import type { ArchiveReason, BatHand, PlayerStatusKind, PositionDetail, ThrowHand } from "../../lib/types";
+import { accountOfPlayer, codeState, codesOfPlayer } from "../../lib/codes";
 import { STATUS_KINDS, statusLabel } from "../../lib/status";
 import { todayISO } from "../../lib/schedule";
 import AttendanceCard from "../../components/AttendanceCard";
@@ -22,11 +23,12 @@ const signed = (v: number) => `${v >= 0 ? "+" : ""}${v}`;
 const GRADES = [1, 2, 3];
 const THROWS: ThrowHand[] = ["우", "좌"];
 const BATS: BatHand[] = ["우", "좌", "양"];
+const ARCHIVE_REASONS: ArchiveReason[] = ["졸업", "이적", "기타"];
 
 export default function PlayerDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { db, updatePlayer, removePlayer, addSnapshot, updateSnapshot, deleteSnapshot } = useStore();
+  const { db, allPlayers, updatePlayer, archivePlayer, restorePlayer, addSnapshot, updateSnapshot, deleteSnapshot } = useStore();
   const player = db.players.find(p => p.id === id);
 
   const [edit, setEdit] = useState(false);
@@ -42,6 +44,8 @@ export default function PlayerDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [archiveReason, setArchiveReason] = useState<ArchiveReason>("졸업");
+  const [restoreMsg, setRestoreMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   /** 측정 기록 폼: null 닫힘 / "add" 새 기록 / 숫자 = 수정 중인 records 위치 */
   const [measure, setMeasure] = useState<null | "add" | number>(null);
   const [recDel, setRecDel] = useState<number | null>(null);
@@ -52,6 +56,50 @@ export default function PlayerDetailPage() {
     const t = window.setTimeout(() => setRecMsg(null), 4000);
     return () => window.clearTimeout(t);
   }, [recMsg]);
+
+  // 보관된 선수는 db.players(활동 선수)에 없다 → 안내와 복원만 보여 준다
+  const archivedPlayer = !player ? allPlayers.find(p => p.id === id && p.archived) : undefined;
+  if (archivedPlayer) {
+    const a = archivedPlayer.archived!;
+    return (
+      <>
+        <PageHead
+          title={`${archivedPlayer.name} — 보관된 선수`}
+          desc={`${archivedPlayer.grade}학년 · ${playerPositionDetail(archivedPlayer)} · 등번호 ${archivedPlayer.backNumber}번`}
+          actions={
+            <button type="button" className="btn ghost sm" onClick={() => nav("/c/players")}>
+              <Icon.ArrowLeft />
+              선수 목록
+            </button>
+          }
+        />
+        <div className="panel">
+          <div className="flex gap8 wrap mb12">
+            <span className="pill outline">보관 · {a.reason}</span>
+            <span className="small faint">{fmtDate(a.at)} 보관</span>
+          </div>
+          <p className="small muted">
+            보관된 선수는 명단·순위·라인업·출석에서 빠져 있고, 본인·학부모 계정으로 로그인할 수 없습니다.
+            측정 기록과 지난 경기 기록은 그대로 남아 있어, 복원하면 이전 상태 그대로 다시 보입니다.
+          </p>
+          {restoreMsg?.kind === "error" && <Notice kind="error" className="mt12">{restoreMsg.text}</Notice>}
+          <div className="flex gap12 wrap mt16">
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                const err = restorePlayer(archivedPlayer.id);
+                setRestoreMsg(err ? { kind: "error", text: err } : { kind: "ok", text: `${archivedPlayer.name} 선수를 명단에 복원했습니다.` });
+              }}
+            >
+              명단에 복원
+            </button>
+            <button type="button" className="btn outline" onClick={() => nav("/c/players")}>명단으로 돌아가기</button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (!player) {
     return (
@@ -65,17 +113,19 @@ export default function PlayerDetailPage() {
   const s = latest(player);
   const injury = s.body.injuryHistory.trim();
   const year = new Date().getFullYear();
-  const seasonGames = useMemo(
-    () => gamesInYear(db.games.filter(g => g.teamId === player.teamId), year),
-    [db.games, player.teamId, year]
-  );
+  const seasonGames = gamesInYear(db.games.filter(g => g.teamId === player.teamId), year);
   const hand = handLabel(player);
   const statusText = statusLabel(player, todayISO());
   const attRecords = db.attendance.filter(a => a.playerId === player.id && a.date.startsWith(String(year)));
 
   const teammates = db.players.filter(p => p.teamId === player.teamId);
-  const code = db.codes.find(c => c.teamId === player.teamId && c.playerName === player.name);
-  const account = db.users.find(u => u.playerId === player.id);
+  /** 본인·학부모 계정 상태 — 가입했으면 계정, 아니면 쓸 수 있는(없으면 가장 최근) 코드 */
+  const accountRows = (["self", "parent"] as const).map(relation => {
+    const account = accountOfPlayer(db.users, player.id, relation);
+    const codes = codesOfPlayer(db.codes, player, relation).filter(c => !c.used);
+    const code = codes.find(c => codeState(c) === "사용 가능") ?? codes.find(c => codeState(c) === "만료") ?? codes[0];
+    return { relation, label: relation === "self" ? "본인 계정" : "학부모 계정", account, code };
+  });
 
   const openEdit = () => {
     setName(player.name);
@@ -262,6 +312,8 @@ export default function PlayerDetailPage() {
   );
 
   const header = (
+    <>
+    {restoreMsg?.kind === "ok" && <Notice kind="ok" className="mb12">{restoreMsg.text}</Notice>}
     <div className="flex between wrap gap16">
       <div className="profile">
         <div className="profile-num">{player.backNumber}</div>
@@ -300,6 +352,7 @@ export default function PlayerDetailPage() {
         </button>
       </div>
     </div>
+    </>
   );
 
   const editSection = (
@@ -381,26 +434,36 @@ export default function PlayerDetailPage() {
 
         <div className="flex between wrap gap12 roster-del">
           <span className="small faint">
-            선수를 삭제하면 계정·피드백·라인업 배치·시합 기록에서도 함께 지워집니다. 되돌릴 수 없습니다.
+            졸업·이적한 선수는 보관합니다. 명단·순위·라인업·출석에서 빠지고 계정 로그인이 막히지만, 측정·경기 기록은 남고 언제든 복원할 수 있습니다.
           </span>
           {confirmDel ? (
             <span className="flex gap8 wrap">
+              <select
+                aria-label="보관 사유"
+                className="select roster-archive-reason"
+                value={archiveReason}
+                onChange={e => setArchiveReason(e.target.value as ArchiveReason)}
+              >
+                {ARCHIVE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
               <button
                 type="button"
                 className="btn danger"
                 onClick={() => {
-                  removePlayer(player.id);
-                  nav("/c/players");
+                  archivePlayer(player.id, archiveReason);
+                  setEdit(false);
+                  setConfirmDel(false);
+                  setRestoreMsg(null);
+                  window.scrollTo({ top: 0 });
                 }}
               >
-                정말 삭제
+                보관
               </button>
               <button type="button" className="btn ghost" onClick={() => setConfirmDel(false)}>취소</button>
             </span>
           ) : (
-            <button type="button" className="btn ghost danger" onClick={() => setConfirmDel(true)}>
-              <Icon.Trash />
-              선수 삭제
+            <button type="button" className="btn ghost danger" onClick={() => { setArchiveReason("졸업"); setConfirmDel(true); }}>
+              선수 보관
             </button>
           )}
         </div>
@@ -460,27 +523,36 @@ export default function PlayerDetailPage() {
         <PlayerSbiCard player={player} />
       </Section>
 
-      <Section title="계정">
+      <Section
+        title="계정"
+        meta="선수 1명당 본인 1개 · 학부모 1개"
+        actions={<Link to="/c/team" className="link-btn">팀 관리에서 관리</Link>}
+      >
         <div className="panel sub">
           <div className="kv">
-            <div className="kv-row">
-              <span className="k">가입 코드</span>
-              <span className="v mono">{code ? code.code : "코드 없음"}</span>
-            </div>
-            <div className="kv-row">
-              <span className="k">상태</span>
-              <span className="v">
-                {code
-                  ? code.used
-                    ? <span className="pill good">가입 완료</span>
-                    : <span className="pill outline">미가입</span>
-                  : <span className="pill outline">코드 없음</span>}
-              </span>
-            </div>
-            <div className="kv-row">
-              <span className="k">연결된 계정</span>
-              <span className="v">{account ? account.email : "없음"}</span>
-            </div>
+            {accountRows.map(({ relation, label, account, code }) => {
+              const state = code ? codeState(code) : null;
+              return (
+                <div className="kv-row" key={relation}>
+                  <span className="k">{label}</span>
+                  <span className="v roster-account">
+                    {account ? (
+                      <><span className="pill good">가입 완료</span><span>{account.email}</span></>
+                    ) : code ? (
+                      <>
+                        <span className={`mono${state === "사용 가능" ? "" : " faint"}`}>{code.code}</span>
+                        <span className={`pill ${state === "사용 가능" ? "outline" : "warn"}`}>
+                          {state === "사용 가능" ? "미가입 · 사용 가능" : state}
+                        </span>
+                        {state === "사용 가능" && code.expiresAt && <span className="small faint">{code.expiresAt}까지</span>}
+                      </>
+                    ) : (
+                      <span className="faint">코드 없음 · 미가입</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </Section>

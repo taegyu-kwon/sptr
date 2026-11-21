@@ -78,7 +78,8 @@ export default function TrainingNoticePage() {
   const cardProps = isCoach ? { onRemove: removeItem, onEdit: setEditItemId, editingId: editItemId } : {};
 
   // 선수가 그날 공지를 열면 읽음 기록을 남긴다(공지가 수정되면 다시 열 때 새로 남는다)
-  const myId = !isCoach ? me?.id : undefined;
+  // 학부모 계정은 보기 전용 — 열어 봐도 선수의 읽음으로 기록하지 않는다
+  const myId = !isCoach && user!.relation !== "parent" ? me?.id : undefined;
   const iRead = !!(notice && myId && hasRead(notice, myId));
   useEffect(() => {
     if (!myId || !notice || iRead) return;

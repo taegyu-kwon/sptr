@@ -2,11 +2,13 @@
 
 브라우저 localStorage에 있던 데이터를 Supabase 서버로 옮기기 위한 테이블·권한 설계.
 전제는 `결정필요.md` "정한 것"(1·2·4·5·6·7·13·15~22번). 미정 항목(3·10·11·12·14번)은 **어느 쪽으로 정해도 테이블을 다시 짜지 않도록** 설계하고 `【미정 n】`으로 표시한다.
-기준일: 2026-10-03 · 상태: 초안(실행 전)
+기준일: 2026-10-03 · 2026-11-21 로컬 구현에 맞춰 보강 · 상태: 초안(실행 전)
 
 ---
 
 > **결정 3 확정(2026-10-03):** 측정 항목 34개 모두 감독·코치 입력, 확인 단계 없음 → `metric_items.input_by`는 전부 코치, `needs_confirm`은 전부 false. 측정 쓰기는 `is_writer()`(감독·코치)만.
+
+> **로컬 구현과 맞춤(2026-11-21):** 앱이 브라우저 저장만으로 코치 측정 입력·SBI 이력·선수 보관·가입 코드(본인/학부모·만료·폐기)·공지 읽음·피드백 수정·예정 경기 결과 연결을 먼저 구현했다. 이 문서의 테이블과 비교해 어긋난 곳만 고쳤다 — `notice_reads` 추가(→ 25개), `feedbacks.updated_at` 추가, 측정일·SBI 이력 설명. 보관(`players.status`·`archived_reason`·`archived_at`), `games.scheduled_game_id`, 가입 코드의 만료·폐기는 이미 설계와 같았다. 대응 표는 3-5절.
 
 ## 1. 요약
 
@@ -49,11 +51,11 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | 관리자 표시 | SQL 편집기로만 | — | — | — | — | — |
 
 ¹ 삭제는 아무 데서도 참조하지 않는 선수(잘못 등록)만 가능. 시합 기록이 있으면 DB가 삭제를 거부하고 보관만 된다(13번).
-² 항목별 입력 주체는 `metric_items.input_by` 설정을 따른다. 지금 동작(선수만 입력)은 모든 항목 `player`로 둔다.
+² 항목별 입력 주체는 `metric_items.input_by` 설정을 따른다. 결정 3에 따라 모든 항목 `coach`로 둔다(로컬 앱도 2026-11-21부터 코치만 입력).
 
 ---
 
-## 3. 테이블 (24개 — 처음 18개에서 `training_slots`·`events`를 빼고 3-4의 8개 추가, 2026-11-21)
+## 3. 테이블 (25개 — 처음 18개에서 `training_slots`·`events`를 빼고 3-4의 9개 추가, 2026-11-21)
 
 공통: `id uuid` 기본값 `gen_random_uuid()`, 시각은 `timestamptz`, 모든 테이블 RLS 켬. `team_id`가 있는 자식 테이블은 트리거로 부모(선수·경기)의 팀과 같은지 검사해 **다른 팀 선수 id를 끼워 넣는 것**을 막는다.
 
@@ -133,7 +135,7 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | 컬럼 | 타입 | 설명 |
 |---|---|---|
 | id | uuid PK | |
-| code | text unique | 무작위 8자, 헷갈리는 글자(0·O·1·I·L) 제외 32자 알파벳 |
+| code | text unique | 무작위 8자, 헷갈리는 글자(0·O·1·I·L) 제외 알파벳. 로컬 구현은 `SPTR-XXXX-XXXX` 형식(무작위 8자 + 접두어), 글자표 31자(A~Z에서 I·L·O 제외 23자 + 2~9) |
 | team_id | uuid → teams | |
 | role | text check (`director`,`head_coach`,`coach`,`player`,`parent`) | 야구부장 / 감독 / 코치 / 선수 본인 / 학부모 |
 | player_id | uuid → players on delete cascade | `player`·`parent`일 때 필수, 그 외 null (check) |
@@ -144,6 +146,7 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | revoked_at | timestamptz | 재발급하면 이전 코드에 기록 |
 
 키: 살아 있는 선수 코드는 선수·관계당 1개 — `unique (player_id, role) where used_at is null and revoked_at is null`. 살아 있는 야구부장 코드는 팀당 1개 — `unique (team_id) where role = 'director' and used_at is null and revoked_at is null`. 코치 코드는 초대 인원만큼 여러 개 가능.
+로컬 구현(2026-11-21)과의 대응: 로컬은 `role`이 `player`·`coach` 둘뿐이고 선수 코드의 본인/학부모를 `relation`(`self`·`parent`)으로 나눈다 → 서버에서는 `role='player'`/`'parent'`로 옮긴다. `expiresAt`은 날짜(그날까지 사용 가능, 발급일 + 14일), `revoked`는 참/거짓 → `expires_at`·`revoked_at`. 재발급 시 이전 미사용 코드 폐기, 이미 계정이 있는 관계·보관된 선수에는 발급 거부, 코드는 선수 id로 연결 — 설계와 같다. 감독·야구부장 코드와 발급 권한 구분은 로컬에 없다.
 쓰기는 직접 못 하고 함수로만: `create_team`(관리자, 감독·야구부장 코드 함께 발급), `issue_signup_code`(재발급 시 이전 코드 revoke, 이미 연결된 관계·이미 야구부장이 있는 팀이면 거부), `peek_signup_code`, `redeem_signup_code`(6장). 발급 권한: 감독·야구부장 코드는 관리자, 코치·선수·학부모 코드는 감독·야구부장.
 
 ### 3-2. 측정·점수
@@ -160,7 +163,7 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | needs_confirm | boolean default false | 선수 입력값을 코치 확인 후 반영할지 |
 | sort · active | smallint · boolean | 순서 · 사용 여부(삭제 대신 끔) |
 
-처음 값: 34개 모두 `input_by='player'`, `needs_confirm=false` = 지금 동작. 3번이 정해지면 **이 표의 값만 바꾼다**(테이블 변경 없음). 새 항목도 행 추가로 끝.
+처음 값: 34개 모두 `input_by='coach'`, `needs_confirm=false`(결정 3, 로컬 앱과 같음). 입력 주체가 바뀌면 **이 표의 값만 바꾼다**(테이블 변경 없음). 새 항목도 행 추가로 끝.
 
 **measurements — 측정 기록(신체·운동능력·실전·SBI/SMI 공통)**
 | 컬럼 | 타입 | 설명 |
@@ -168,8 +171,8 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | id | uuid PK | |
 | player_id | uuid → players on delete cascade | |
 | team_id | uuid → teams | 트리거가 선수의 팀으로 채움(RLS용) |
-| measured_on | date not null | 측정일(지금은 항상 오늘, 코치 단체 측정 날짜도 가능) |
-| source | text check (`input`,`sbi`,`register`) | 데이터 입력 화면 / SBI 화면 / 선수 등록 |
+| measured_on | date not null | 측정일. 코치가 고른다(오늘 이후 불가). 로컬 구현은 선수·측정일당 기록 1건 — 같은 날짜가 있으면 추가 대신 그 기록을 수정 |
+| source | text check (`input`,`sbi`,`register`) | 선수 상세의 측정 기록 입력 / SBI/SMI 상세 입력 / 선수 등록 |
 | data | jsonb not null | `{"height":172.3,"dash60":7.4,"kind":"투수",…}` — 이번에 입력한 항목만(`values`는 SQL 예약어라 `data`) |
 | entered_by | uuid → profiles | **입력한 계정**(트리거가 로그인 계정으로 덮어씀) |
 | entered_role | text check (`head_coach`,`coach`,`player`,`parent`) | **입력한 역할**(트리거가 계산) |
@@ -178,7 +181,7 @@ R = 읽기, W = 추가·수정, D = 삭제, — = 불가. 감독은 코치 권�
 | created_at | timestamptz | |
 
 검사 트리거: `data`의 키가 `metric_items`에 있고 `active`인지, 입력 역할이 `input_by`에 맞는지, 숫자가 범위 안인지. 맞지 않으면 저장 거부.
-SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** → 이력이 남는다(지금은 덮어씀). 코치 SBI 화면의 "최신"은 가장 최근 `sbi` 행.
+SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** → 이력이 남는다. 코치 SBI 화면의 "최신"은 가장 최근 `sbi` 행. 로컬 구현(2026-11-21)도 이력(`sbiHistory`, 측정일순)을 남기며 **같은 측정일로 다시 저장하면 그날 행을 바꾼다** → 서버도 `source in ('input','sbi')`는 `unique (player_id, source, measured_on)` + upsert로 맞춘다. 이력 1건 삭제·측정 기록 수정/삭제는 감독·코치(5-3의 measurements UPDATE·DELETE에 감독·코치 직접 수정 포함). 선수의 마지막 측정 기록 1건은 지우지 못하게 한다(점수 계산에 최소 1건 필요).
 
 **열로 펼칠지 JSON일지 — JSON으로 결정**
 | 기준 | 열 34개로 펼침 | JSON 1칸 (채택) |
@@ -189,9 +192,9 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | 지금 코드와의 거리 | 중첩 Snapshot ↔ 열 변환 필요 | 키 = 지금 필드 이름, 변환이 단순 |
 | 단점 | — | SQL로 항목별 통계 내기가 덜 편함(지금 앱에는 그런 기능 없음) |
 
-점수용 "스냅숏"은 앱·서버 함수가 확인된 행을 날짜순으로 쌓아 **항목별 마지막 값**으로 만든다. 데이터 입력 화면은 지금처럼 25개 항목을 한 번에 저장하므로 성장 그래프의 점 하나 = 행 하나로 지금과 같다.
+점수용 "스냅숏"은 앱·서버 함수가 확인된 행을 날짜순으로 쌓아 **항목별 마지막 값**으로 만든다. 측정 기록 입력 폼은 25개 항목을 한 번에 저장하므로 성장 그래프의 점 하나 = 행 하나로 지금과 같다.
 【미정 11】 선수 등록 때는 실제 입력한 4개(나이·키·몸무게·선수 유형)만 `source='register'`로 저장하고, 빈 항목의 기본값은 **저장하지 않고 계산할 때 채운 뒤 `uses_defaults` 표시** → 숨길지 그대로 쓸지는 계산·화면에서 결정.
-【미정 12】 SBI 계산에 쓸 신장·구속은 지금처럼 측정 기록 최신값을 쓰거나, SBI 행에 `sbiHeight`·`sbiVelo` 키를 추가해 따로 저장 — 둘 다 테이블 변경 없음.
+【미정 12】 SBI 계산에 쓸 신장·구속은 지금처럼 측정 기록 값을 쓰거나(로컬: 최신 SBI는 최근 측정 기록, 지난 SBI 이력은 그 측정일 이전의 가장 가까운 측정 기록), SBI 행에 `sbiHeight`·`sbiVelo` 키를 추가해 따로 저장 — 둘 다 테이블 변경 없음.
 
 **player_scores — 서버가 계산한 최신 점수**
 | 컬럼 | 타입 | 설명 |
@@ -221,8 +224,9 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | author_name | text | 작성 당시 이름(선수가 코치 프로필을 읽지 않아도 표시) |
 | category | text | 훈련·투구·타격·팀 전체 등 |
 | content | text not null | |
-| written_on | date default 오늘 | |
+| written_on | date default 오늘 | 작성일. 수정해도 바꾸지 않음 |
 | created_at | timestamptz | |
+| updated_at | timestamptz, null 허용 | 【11-21 추가】 내용·대상·카테고리를 고친 시각. null = 고친 적 없음 → 화면에 "수정됨" 표시 |
 
 **training_slots — 주간 훈련 일정**
 | 컬럼 | 타입 | 설명 |
@@ -252,7 +256,7 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | team_id | uuid → teams | |
 | game_date | date | |
 | game_type | text check (`정식`,`연습`) default `정식` | 【11월 추가】 올해 성적을 합산/정식/연습으로 나눠 봄 |
-| scheduled_game_id | uuid → scheduled_games, null 허용 | 【11월 추가】 월간 일정의 경기와 연결(있으면) |
+| scheduled_game_id | uuid → scheduled_games on delete set null, null 허용 | 【11월 추가】 월간 일정의 경기와 연결(있으면). 로컬 구현(11-21): 월간 일정의 "결과 입력"으로 등록하면 채워지고, 예정 경기 하나에 결과 하나 → `unique (scheduled_game_id) where scheduled_game_id is not null` |
 | opponent | text | |
 | score_for · score_against | smallint ≥ 0 | |
 | result | text generated (점수 비교로 승·패·무) | 지금처럼 자동 판정, 서버가 계산 |
@@ -327,8 +331,8 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | source | text check (`선수`,`코치`) | 선수 본인 체크 / 코치 수정 |
 | checked_by · checked_at | uuid · timestamptz | |
 
-키: unique(player_id, att_date). RLS: 선수 본인(학부모 제외 여부는 미정)은 자기 행만 insert/update, 감독·코치는 팀 전체 수정. 출석률 = (출석+지각) ÷ (기록한 날 − 사유결석) 은 화면 계산.
-미정(2단계 2 전): 체크 가능 시간 제한, 지각 자동 판정, 미체크를 결석으로 칠지.
+키: unique(player_id, att_date). RLS: 선수 본인(`relation='self'`)은 자기 행만 insert/update — 학부모는 보기만(로컬 구현 2026-11-21 기준, 결정 5의 "학부모 화면은 선수와 같게"와 다르므로 확인 필요), 감독·코치는 팀 전체 수정. 출석률 = (출석+지각) ÷ (기록한 날 − 사유결석) 은 화면 계산.
+미정(2단계 2 전, 결정필요 27): 체크 가능 시간 제한, 지각 자동 판정, 미체크를 결석으로 칠지.
 
 **daily_notices — 훈련 공지(날짜별)**
 | 컬럼 | 타입 | 설명 |
@@ -338,7 +342,7 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | notice_date | date | unique(team_id, notice_date) |
 | off | boolean default false | 휴식일 |
 | meet_time · place · bring · message | text | 집합 시각·장소·준비물·전달 사항 |
-| updated_by · updated_at | | |
+| updated_by · updated_at | | 읽음 판정 기준 — 기본 안내나 시간표를 고치면 `updated_at`을 갱신 |
 
 **notice_items — 공지 시간표**
 | 컬럼 | 타입 | 설명 |
@@ -350,6 +354,17 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 | title | text not null | |
 | detail · place | text | |
 | sort | smallint | |
+
+**notice_reads — 훈련 공지 읽음** 【11-21 추가】
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| notice_id | uuid → daily_notices on delete cascade | |
+| player_id | uuid → players on delete cascade | 읽은 선수(계정이 아니라 선수 기준) |
+| read_at | timestamptz not null | 그 선수가 공지를 마지막으로 연 시각 |
+
+키: PK(notice_id, player_id) — 선수당 1행, 다시 열면 `read_at`만 갱신(upsert).
+읽음 판정: `read_at >= daily_notices.updated_at`이면 확인, 그보다 앞이면 "수정 전 확인"(다시 미확인). 화면 계산이라 칼럼을 더 두지 않는다.
+쓰기: 선수 **본인 계정만** 자기 선수 행을 insert/update(`my_relation(player_id) = 'self'`). 학부모 계정이 열어도 기록하지 않는다(로컬 구현과 같음). 읽기: 직원(감독·코치·야구부장)은 팀 전체, 선수·학부모는 자기 선수 행.
 
 **tournaments — 대회**
 | 컬럼 | 타입 | 설명 |
@@ -381,7 +396,25 @@ SBI/SMI는 같은 테이블에 `source='sbi'`로 **저장할 때마다 1행** �
 
 **측정 센터 지도** — 시연용 가짜 데이터(`src/lib/centers.ts`). 서버 범위에 넣을지 태규님 결정 대기, 넣지 않으면 2단계 10에서 화면 제거 또는 시연 표시 유지.
 
-권한 요약(5장에 추가할 내용): 위 테이블 모두 팀 경계 강제. 쓰기는 감독·코치(공지·일정·특이사항·출석 수정), 출석 본인 체크만 선수. 야구부장·선수·학부모는 읽기(특이사항의 `note`를 선수·학부모에게 보여줄지는 화면 기준 그대로: 본인 것만).
+권한 요약(5장에 추가할 내용): 위 테이블 모두 팀 경계 강제. 쓰기는 감독·코치(공지·일정·특이사항·출석 수정), 출석 본인 체크와 공지 읽음 기록만 선수 본인(학부모 계정은 둘 다 못 함 — 로컬 구현 기준). 야구부장·선수·학부모는 읽기(특이사항의 `note`를 선수·학부모에게 보여줄지는 화면 기준 그대로: 본인 것만).
+
+### 3-5. 로컬 구현(2026-11-21)과 테이블 대응
+
+브라우저 저장본(`src/lib/types.ts`)의 새 필드가 서버 어디로 가는지. 2단계 7·8(읽기·쓰기 전환) 때 이 표대로 옮긴다.
+
+| 로컬 필드 | 서버 | 비고 |
+|---|---|---|
+| `Player.archived { reason, at }` | `players.status='archived'` · `archived_reason` · `archived_at` | 사유 3가지(졸업·이적·기타) 같음. 복원 = `active`로 되돌리고 두 칸 비움. 등번호가 활동 선수와 겹치면 unique 조건이 거부(로컬도 복원 거부) |
+| 선수 삭제 없음(`removePlayer` 제거) | 2장 주석 ¹ 그대로 | 로컬은 삭제 버튼 자체가 없다. 잘못 등록한 선수 삭제를 화면에 둘지는 2단계 8에서 |
+| `Player.records[]`(측정일순) | `measurements` `source='input'`·`'register'` | 선수·측정일당 1건, 수정·삭제는 감독·코치 |
+| `Player.sbiHistory[]` · `sbiMetrics`(최신) | `measurements` `source='sbi'` | 같은 측정일은 교체. `sbiMetrics`는 따로 저장하지 않고 가장 최근 행 |
+| `GameRecord.scheduledGameId` | `games.scheduled_game_id` | 이미 있던 칼럼 |
+| `DailyNotice.reads[] { playerId, at }` | `notice_reads` | 새 테이블 |
+| `FeedbackItem.updatedAt` | `feedbacks.updated_at` | 새 칼럼. 로컬은 작성자가 아닌 코치도 수정·삭제 — 5-3의 "작성자만 수정"과 다르니 2단계 3에서 정함 |
+| `SignupCode.relation` · `playerId` · `issuedAt` · `expiresAt` · `revoked` | `signup_codes.role`(`player`/`parent`) · `player_id` · `issued_at` · `expires_at` · `revoked_at` | 3-1 signup_codes 아래 설명 |
+| `User.relation`(`self`/`parent`) | `player_accounts.relation` | 선수당 본인 1·학부모 1 같음. 형제 연결(결정 17)은 로컬에 없음 |
+| `Team.name` · `region` 수정(코치) | `teams` UPDATE는 관리자 | 로컬은 코치가 고친다. 설계(결정 2)는 관리자 — 감독·야구부장에게도 열지 2단계 3에서 정함 |
+| 내 계정: 이름·비밀번호 변경 | `profiles.display_name`(본인) · Supabase Auth 비밀번호 변경 | 선수 본인 이름은 `players.name`을 따름 |
 
 ---
 
@@ -411,6 +444,8 @@ erDiagram
     GAMES ||--o{ PITCHING_LINES : "투구"
     PLAYERS ||--o{ BATTING_LINES : "restrict"
     PLAYERS ||--o{ PITCHING_LINES : "restrict"
+    DAILY_NOTICES ||--o{ NOTICE_READS : "읽음"
+    PLAYERS ||--o{ NOTICE_READS : "읽은 선수"
     TEAMS ||--o{ LINEUPS : "저장 이력"
     LINEUPS ||--|{ LINEUP_SLOTS : "자리"
     PLAYERS ||--o{ LINEUP_SLOTS : "배치"
@@ -522,9 +557,10 @@ erDiagram
 | player_accounts | 직원 · 연결된 본인 · 관리자 | 함수(redeem) | — | 감독·야구부장(연결 해제) |
 | signup_codes | 감독·야구부장(자기 팀 코치·선수·학부모 코드) · 관리자 | 함수(create_team·issue) | 함수(issue·redeem) | — |
 | metric_items | 로그인 사용자 | 관리자 | 관리자 | — |
-| measurements | 직원 · 연결된 선수의 행 · 관리자 | 감독·코치(팀 선수) · 연결 계정(내 선수, 활동 중) — 항목 검사는 트리거 | 함수(review: 감독·코치) | 감독·코치 · 입력한 본인(`pending`일 때만) |
+| measurements | 직원 · 연결된 선수의 행 · 관리자 | 감독·코치(팀 선수) — 결정 3으로 선수·학부모 입력 없음. 항목 검사는 트리거 | 감독·코치(측정 기록 수정, 같은 측정일 SBI 교체) | 감독·코치(선수의 마지막 `input`·`register` 1건은 거부) |
 | player_scores | 직원 · 본인 행 · 관리자 | 서버 함수만 | 서버 함수만 | — |
-| feedbacks | 직원 · 선수는 `player_id in my_players() or player_id is null` · 관리자 | 감독·코치 | 작성자 | 감독 · 작성자 |
+| feedbacks | 직원 · 선수는 `player_id in my_players() or player_id is null` · 관리자 | 감독·코치 | 작성자(`updated_at` 갱신) — 로컬은 코치 누구나 | 감독 · 작성자 — 로컬은 코치 누구나 |
+| notice_reads | 직원 · 자기 선수 행 · 관리자 | 선수 본인 계정(자기 선수) | 선수 본인 계정(`read_at`) | — (공지 삭제 시 함께) |
 | training_slots · events · games | 구성원 · 관리자 | 감독·코치 | 감독·코치 | 감독·코치 |
 | batting_lines · pitching_lines | 직원 · 선수는 본인 줄만 · 관리자 | 감독·코치 | 감독·코치 | 감독·코치 |
 | lineups · lineup_slots | 직원 · 선수는 팀 최신 1건 · 관리자 | 감독·코치 | — (새 행으로 저장) | — |
@@ -572,7 +608,7 @@ erDiagram
 - 코치·선수·학부모 코드: 감독·야구부장이 `issue_signup_code`로 발급·재발급. 코치는 발급·열람 불가.
 
 **가입 흐름(A 기준)**
-1. 가입 코드 입력 → `peek_signup_code(code)`: 유효하면 "성남중학교 야구부 · 김하준 · 학부모"처럼 팀·역할·선수 이름만 반환. 코드는 32자 알파벳 8자리(약 1조 가지)라 무작위 대입이 비현실적 → sportir식 시도 제한 테이블은 두지 않음(필요해지면 추가).
+1. 가입 코드 입력 → `peek_signup_code(code)`: 유효하면 "배명고등학교 야구부 · 김하준 · 학부모"처럼 팀·역할·선수 이름만 반환. 코드는 32자 알파벳 8자리(약 1조 가지)라 무작위 대입이 비현실적 → sportir식 시도 제한 테이블은 두지 않음(필요해지면 추가).
 2. 이메일·비밀번호·이름 → `auth.signUp` (코드는 `user_metadata`에 함께 보관).
 3. 메일 링크 클릭 → 이메일 확인·로그인.
 4. 로그인 후 팀·선수 연결이 없으면 `redeem_signup_code(code)`: 만료·사용·폐기 확인 후 `team_members`(야구부장·감독·코치) 또는 `player_accounts`(본인·학부모) 생성, 코드 사용 처리. 야구부장 코드는 팀에 이미 야구부장이 있으면 거부(`team_members` 부분 unique가 최종 보장). 그사이 코드가 만료됐으면 "코드 재발급 요청" 화면에서 새 코드만 입력.
@@ -627,20 +663,21 @@ erDiagram
 
 **예시 팀 넣기**
 - `scripts/`의 일회용 스크립트가 지금 `buildSeed()`를 돌려 `supabase/seed/demo_team_seed.sql`을 만든다 → 숫자가 지금 데모와 같음. 이후 `seed.ts`는 앱 번들에서 빠진다.
-- 넣는 것: 팀 "성남중학교 야구부", 선수 12명, 선수별 측정 5행(`source='input'`, `status='confirmed'`, 입력자 = 관리자), SBI 1행씩(측정일 채움), 피드백 5, 주간 훈련 8, 경기 3(투구 `outs` = 이닝×3), 다가오는 일정 3(**실행일 기준 미래 날짜**로 — 지금은 지난 7월 날짜).
+- (아래 수량은 2026-10-03 초안 기준 — 지금 예시 데이터는 팀 "배명고등학교 야구부", 선수 24명, 측정 5회씩, 올해 정식·연습 경기, 출석·훈련 공지·월간 일정까지 있고 날짜를 오늘 기준으로 만든다. 실행 전에 `buildSeed()`·`buildScheduleSeed()` 결과로 다시 센다.)
+- 넣는 것: 팀 "성남중학교 야구부"(→ 배명고등학교 야구부), 선수 12명, 선수별 측정 5행(`source='input'`, `status='confirmed'`, 입력자 = 관리자), SBI 1행씩(측정일 채움), 피드백 5, 주간 훈련 8, 경기 3(투구 `outs` = 이닝×3), 다가오는 일정 3(**실행일 기준 미래 날짜**로 — 지금은 지난 7월 날짜).
 - 계정은 SQL로 만들지 않는다(비밀번호를 다루지 않기 위해). 관리자가 앱에서 감독·야구부장 코드 발급 → 태규님 본인 이메일(+별칭 주소)로 야구부장·감독·코치·선수·학부모 시험 가입.
 - `supabase/seed/demo_team_reset.sql`: 예시 팀의 기록만 지우고 다시 넣기(sportir `demo_center_reset_data.sql` 방식, 모든 삭제를 예시 팀 id로 한정). 앱 안 "데모 데이터 초기화"를 대신함.
 
 **localStorage 데모 기능 정리**
 | 지금 | 처리 |
 |---|---|
-| `sptr-db-v2`(전체 DB), `sptr-session-v1`(로그인 id) | 새 버전 첫 실행 때 키 삭제. 데이터 이관 없음(모두 예시 데이터라는 전제 — 10장 확인) |
+| `sptr-db-v5`(전체 DB, 초안 때는 v2)·`sptr-schedule-v3`(훈련 공지·월간 일정)·`sptr-session-v1`(로그인 id) 및 이전 버전 키 | 새 버전 첫 실행 때 키 삭제. 데이터 이관 없음(모두 예시 데이터라는 전제 — 10장 확인) |
 | `store.tsx`의 `loadDB`·SBI 시드 보강 | 삭제. 화면별 Supabase 조회로 교체 |
-| 로그인 화면 데모 계정 칩·데모 가입 코드 칩 | 삭제 |
+| 로그인 화면 "체험하기" 버튼(옛 데모 계정 칩)·체험용 가입 코드 칩 | 삭제 |
 | 데모 데이터 초기화 버튼 | 삭제(reset SQL로 대체) |
-| 휴대폰 본인인증 가짜 버튼 | 삭제(6번: 이메일 인증) |
-| `nextPlayerCode`(순번 코드) | 삭제(`issue_signup_code`) |
-| `removePlayer`(연쇄 삭제) | 보관 처리 + 참조 없을 때만 삭제 |
+| ~~휴대폰 본인인증 가짜 버튼~~ | 2026-11-21 로컬에서 이미 삭제. 이메일 인증은 9장 5 |
+| ~~`nextPlayerCode`(순번 코드)~~ → `randomCode`·`issueCode`(`src/lib/codes.ts`, 브라우저에서 발급) | 순번 코드는 2026-11-21 삭제됨. 브라우저 발급을 `issue_signup_code`로 교체 |
+| ~~`removePlayer`(연쇄 삭제)~~ → `archivePlayer`·`restorePlayer` | 연쇄 삭제는 2026-11-21 삭제됨. 보관·복원을 서버 쓰기로 교체 |
 
 ---
 
@@ -651,7 +688,7 @@ erDiagram
 | # | 단위 | 끝났을 때 확인 |
 |---|---|---|
 | 1 | Supabase 프로젝트 준비: 프로젝트·Resend SMTP(전용 도메인, 이 단계 전에 결정)·메일 템플릿(쿼리 방식)·리다이렉트 주소, 앱에 `@supabase/supabase-js`와 환경 변수(`VITE_SUPABASE_URL`·`ANON_KEY`) | 앱 빌드 성공, 연결만 하고 화면 동작은 그대로 |
-| 2 | 마이그레이션 ①: 테이블 24개(3-4 포함)·키·제약·트리거(팀 일치·측정 값 검사·결과 자동 판정) + `metric_items` 34행 | SQL 편집기 적용 후 REST로 테이블 확인, 잘못된 값(다른 팀 선수, 범위 밖 값, 중복 등번호) 넣기가 거부되는지 |
+| 2 | 마이그레이션 ①: 테이블 25개(3-4 포함)·키·제약·트리거(팀 일치·측정 값 검사·결과 자동 판정) + `metric_items` 34행 | SQL 편집기 적용 후 REST로 테이블 확인, 잘못된 값(다른 팀 선수, 범위 밖 값, 중복 등번호) 넣기가 거부되는지 |
 | 3 | 마이그레이션 ②: 판단 함수·RLS 정책·`create_team`·가입 코드 함수 3개·`team_ranking()` + 되돌리기 SQL | DO 블록으로 역할 6개를 흉내 내 5장 표대로 읽기·쓰기 결과 확인(전부 롤백). 야구부장: 선수 등록·보관·코드 발급은 성공, 측정·피드백·경기·라인업 쓰기는 거부 |
 | 4 | 예시 팀 seed SQL 생성·적용 | 팀·선수 12·측정 60행·SBI 12행·경기 3 수, 몇 선수의 점수가 지금 데모와 같은지 |
 | 5 | 로그인·가입·이메일 인증·비밀번호 찾기 화면(Supabase Auth), 관리자 표시 | 실제 메일로 가입→인증→로그인→로그아웃→비번 재설정, 틀린 비번 문구가 하나 |
@@ -659,7 +696,7 @@ erDiagram
 | 7 | 읽기 전환: 모든 화면이 Supabase에서 읽음(`store.tsx` 대체) | 선수·코치 각 화면이 4의 데이터로 지금과 같은 값 표시, 두 기기에서 같은 데이터 |
 | 8 | 쓰기 전환: 측정 저장·SBI 저장(이력)·선수 등록/수정/보관·피드백·훈련 공지·월간 일정·출석·특이사항·경기 등록/삭제·라인업 저장(이력) | 한 기기에서 쓰고 다른 기기에서 보임, 두 탭 동시 저장 시 서로 지우지 않음, 경기에 나온 선수 삭제 거부·보관 동작 |
 | 9 | 점수 서버 함수(`api/scores.ts`)·`player_scores`·순위·추천 라인업 전환 | 선수 토큰으로 REST 조회 시 다른 선수 측정·신체 점수가 0건, 순위 숫자가 7과 같음, 측정 저장 후 점수 갱신 |
-| 10 | 데모 기능·localStorage 제거(8장 표) | 로그인 화면에 데모 표시 없음, 브라우저 저장소에 `sptr-db-v2` 없음 |
+| 10 | 데모 기능·localStorage 제거(8장 표) | 로그인 화면에 데모 표시 없음, 브라우저 저장소에 `sptr-db-*`·`sptr-schedule-*` 없음 |
 | 11 | 역할별 REST 점검(sportir 방식): 역할 6개 토큰으로 금지된 읽기·쓰기 시도 | 5장 표와 전부 일치. 야구부장 토큰의 기록 쓰기·코치 토큰의 가입 코드 읽기가 거부되는지 포함 |
 | 12 | 문서: `기능목록.md`(저장 위치 "이 브라우저" → "서버", 알려진 문제 정리), `변경기록.md` | 1장의 해결 목록이 실제로 지워짐 |
 

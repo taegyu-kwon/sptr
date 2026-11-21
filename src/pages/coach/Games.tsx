@@ -48,11 +48,17 @@ function NumField({
 }
 
 export default function GamesPage() {
-  const { db, user, addGame, updateGame, removeGame } = useStore();
+  const { db, user, allPlayers, addGame, updateGame, removeGame } = useStore();
   const teamId = user!.teamId;
   const games = db.games.filter(g => g.teamId === teamId).sort((a, b) => b.date.localeCompare(a.date));
   const players = db.players.filter(p => p.teamId === teamId);
-  const nameOf = (id: string) => players.find(p => p.id === id)?.name ?? "?";
+  /** 보관된 선수까지 포함 — 지난 경기 기록의 이름 표시와, 그 기록을 수정할 때의 선수 선택에 쓴다 */
+  const everyone = allPlayers.filter(p => p.teamId === teamId);
+  const activeIds = useMemo(() => new Set(db.players.filter(p => p.teamId === teamId).map(p => p.id)), [db.players, teamId]);
+  const nameOf = (id: string) => {
+    const p = everyone.find(x => x.id === id);
+    return p ? `${p.name}${p.archived ? " (보관)" : ""}` : "삭제된 선수";
+  };
   const rosterOptions = useMemo(
     () => [...players].sort((a, b) => a.backNumber - b.backNumber),
     [players]
@@ -186,8 +192,12 @@ export default function GamesPage() {
     setPitRows(rows => rows.map(r => (r.key === key ? { ...r, ...patch } : r)));
 
   /** 같은 표의 다른 행이 이미 고른 선수는 목록에서 뺀다 */
-  const pickable = (usedIds: string[], mine: string) =>
-    rosterOptions.filter(p => p.id === mine || !usedIds.includes(p.id));
+  const pickable = (usedIds: string[], mine: string) => {
+    const list = rosterOptions.filter(p => p.id === mine || !usedIds.includes(p.id));
+    // 보관된 선수가 들어 있는 지난 기록을 고칠 때는 그 행에서만 그 선수를 그대로 둘 수 있다
+    const kept = mine && !activeIds.has(mine) ? everyone.find(p => p.id === mine) : undefined;
+    return kept ? [kept, ...list] : list;
+  };
 
   const sfNum = Number(scoreFor);
   const saNum = Number(scoreAgainst);
@@ -300,9 +310,9 @@ export default function GamesPage() {
   };
 
   /* ---------- 집계 ---------- */
-  // 시즌 전적은 올해 경기만 센다 (대시보드·선수단의 '이번 시즌'과 같은 기준)
+  // 시즌 전적·선수 개별 기록·랭킹은 올해 경기만 센다 (대시보드·선수단·선수 상세의 '이번 시즌'과 같은 기준)
   const seasonYear = new Date().getFullYear();
-  const seasonGames = gamesInYear(games, seasonYear);
+  const seasonGames = useMemo(() => gamesInYear(games, seasonYear), [db.games, teamId, seasonYear]); // eslint-disable-line react-hooks/exhaustive-deps
   const record = useMemo(() => {
     const w = seasonGames.filter(g => g.result === "승").length;
     const l = seasonGames.filter(g => g.result === "패").length;
@@ -314,18 +324,18 @@ export default function GamesPage() {
 
   const batTotals = useMemo(
     () =>
-      [...battingTotalsByPlayer(games).entries()].map(([playerId, s]) => ({
-        playerId, ...s, avg: battingAvg(s.hits, s.ab) ?? 0,
-      })),
-    [games]
+      [...battingTotalsByPlayer(seasonGames).entries()]
+        .filter(([playerId]) => activeIds.has(playerId))
+        .map(([playerId, s]) => ({ playerId, ...s, avg: battingAvg(s.hits, s.ab) ?? 0 })),
+    [seasonGames, activeIds]
   );
 
   const pitTotals = useMemo(
     () =>
-      [...pitchingTotalsByPlayer(games).entries()].map(([playerId, s]) => ({
-        playerId, ...s, era: eraOf(s.er, s.ip) ?? 0,
-      })),
-    [games]
+      [...pitchingTotalsByPlayer(seasonGames).entries()]
+        .filter(([playerId]) => activeIds.has(playerId))
+        .map(([playerId, s]) => ({ playerId, ...s, era: eraOf(s.er, s.ip) ?? 0 })),
+    [seasonGames, activeIds]
   );
 
   const rankingBlocks = [
@@ -467,7 +477,7 @@ export default function GamesPage() {
                           >
                             <option value="">선수 선택</option>
                             {pickable(batUsed, r.playerId).map(p => (
-                              <option key={p.id} value={p.id}>{p.backNumber}번 {p.name}</option>
+                              <option key={p.id} value={p.id}>{p.backNumber}번 {p.name}{p.archived ? " (보관)" : ""}</option>
                             ))}
                           </select>
                         </div>
@@ -518,7 +528,7 @@ export default function GamesPage() {
                           >
                             <option value="">선수 선택</option>
                             {pickable(pitUsed, r.playerId).map(p => (
-                              <option key={p.id} value={p.id}>{p.backNumber}번 {p.name}</option>
+                              <option key={p.id} value={p.id}>{p.backNumber}번 {p.name}{p.archived ? " (보관)" : ""}</option>
                             ))}
                           </select>
                         </div>
@@ -738,11 +748,12 @@ export default function GamesPage() {
       )}
 
       {tab === "players" && (
-        <div className="split even">
+        <>
+          <p className="faint small mt12 game-list-bar">{seasonYear} 시즌 정식·연습경기 합산 · 보관된 선수 제외 · 선수 상세의 '{seasonYear}년 성적'과 같은 값입니다</p>
           <div className="panel">
             <div className="card-head">
               <h3>타격 누적</h3>
-              <span className="meta">{batTotals.length}명</span>
+              <span className="meta">{batTotals.length}명 · 타율순</span>
             </div>
             {batTotals.length === 0 ? (
               <Empty>타격 기록이 없습니다.</Empty>
@@ -750,17 +761,27 @@ export default function GamesPage() {
               <div className="tbl-wrap">
                 <table className="tbl">
                   <thead>
-                    <tr><th>선수</th><th className="num">타수</th><th className="num">안타</th><th className="num sorted">타율</th><th className="num">홈런</th><th className="num">타점</th><th className="num">도루</th></tr>
+                    <tr>
+                      <th>선수</th><th className="num">경기</th><th className="num">타수</th><th className="num">안타</th><th className="num sorted">타율</th>
+                      <th className="num">2루타</th><th className="num">3루타</th><th className="num">홈런</th><th className="num">타점</th>
+                      <th className="num">득점</th><th className="num">볼넷</th><th className="num">삼진</th><th className="num">도루</th>
+                    </tr>
                   </thead>
                   <tbody>
                     {[...batTotals].sort((a, b) => b.avg - a.avg).map(r => (
                       <tr key={r.playerId}>
                         <td className="name">{nameOf(r.playerId)}</td>
+                        <td className="num">{r.games}</td>
                         <td className="num">{r.ab}</td>
                         <td className="num">{r.hits}</td>
-                        <td className="num"><b>{fmtAvg(r.avg)}</b></td>
+                        <td className="num"><b>{r.ab > 0 ? fmtAvg(r.avg) : "-"}</b></td>
+                        <td className="num">{r.doubles}</td>
+                        <td className="num">{r.triples}</td>
                         <td className="num">{r.hr}</td>
                         <td className="num">{r.rbi}</td>
+                        <td className="num">{r.runs}</td>
+                        <td className="num">{r.bb}</td>
+                        <td className="num">{r.so}</td>
                         <td className="num">{r.sb}</td>
                       </tr>
                     ))}
@@ -769,10 +790,10 @@ export default function GamesPage() {
               </div>
             )}
           </div>
-          <div className="panel">
+          <div className="panel game-totals-next">
             <div className="card-head">
               <h3>투구 누적</h3>
-              <span className="meta">{pitTotals.length}명</span>
+              <span className="meta">{pitTotals.length}명 · ERA순</span>
             </div>
             {pitTotals.length === 0 ? (
               <Empty>투구 기록이 없습니다.</Empty>
@@ -780,13 +801,15 @@ export default function GamesPage() {
               <div className="tbl-wrap">
                 <table className="tbl">
                   <thead>
-                    <tr><th>선수</th><th className="num">이닝</th><th className="num">자책</th><th className="num sorted">ERA</th><th className="num">탈삼진</th><th className="num">볼넷</th></tr>
+                    <tr><th>선수</th><th className="num">경기</th><th className="num">이닝</th><th className="num">피안타</th><th className="num">자책</th><th className="num sorted">ERA</th><th className="num">탈삼진</th><th className="num">볼넷</th></tr>
                   </thead>
                   <tbody>
                     {[...pitTotals].sort((a, b) => (a.ip > 0 ? 0 : 1) - (b.ip > 0 ? 0 : 1) || a.era - b.era).map(r => (
                       <tr key={r.playerId}>
                         <td className="name">{nameOf(r.playerId)}</td>
+                        <td className="num">{r.games}</td>
                         <td className="num">{fmtIp(r.ip)}</td>
+                        <td className="num">{r.hits}</td>
                         <td className="num">{r.er}</td>
                         <td className="num"><b>{r.ip > 0 ? fmtEra(r.era) : "-"}</b></td>
                         <td className="num">{r.so}</td>
@@ -798,10 +821,12 @@ export default function GamesPage() {
               </div>
             )}
           </div>
-        </div>
+        </>
       )}
 
       {tab === "ranking" && (
+        <>
+        <p className="faint small mt12 game-list-bar">{seasonYear} 시즌 기록 기준 · 보관된 선수 제외</p>
         <div className="grid cols-3">
           {rankingBlocks.map(block => (
             <div className="panel sub" key={block.title}>
@@ -826,6 +851,7 @@ export default function GamesPage() {
             </div>
           ))}
         </div>
+        </>
       )}
     </>
   );

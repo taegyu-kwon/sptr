@@ -3,7 +3,8 @@ import type {
 } from "./types";
 import { groupOf, kindOf } from "./roster";
 import { suggestLineup } from "./lineup";
-import { addDays, fromISO, toISO, todayISO } from "./schedule";
+import { CODE_VALID_DAYS } from "./codes";
+import { addDays, fromISO, seedScheduledGames, toISO, todayISO } from "./schedule";
 
 // 시드 고정 난수 — 데모 데이터가 항상 동일하게 생성됨
 let seedVal = 42;
@@ -154,7 +155,20 @@ function buildGames(teamId: string, players: Player[], talentOf: Map<string, num
   const fielders = players.filter(p => p.position !== "투수");
   const pitcherOrder = [...pitchers].sort((a, b) => t(b.id) - t(a.id));
 
-  return schedule.map(([date, type, opponent], gi) => {
+  // 월간 일정 예시(schedule.ts)의 지난 예정 경기는 결과가 입력된 것으로 둔다 — 일정에 점수·승패가 보이고
+  // 시즌 전적·선수 기록에도 같은 경기가 들어간다. 오늘 경기는 "결과 입력" 대상이라 만들지 않는다.
+  // 같은 날짜의 경기가 위 목록에 있으면 그 경기를 예정 경기(상대·구분)에 맞춰 연결하고, 없으면 뒤에 덧붙인다.
+  const plan: { date: string; type: GameType; opponent: string; scheduledGameId?: string }[] =
+    schedule.map(([date, type, opponent]) => ({ date, type, opponent }));
+  for (const sg of seedScheduledGames(teamId)) {
+    if (sg.date >= today) continue;
+    const linked = { date: sg.date, type: (sg.kind === "정식대회" ? "정식" : "연습") as GameType, opponent: sg.opponent, scheduledGameId: sg.id };
+    const at = plan.findIndex(x => x.date === sg.date && !x.scheduledGameId);
+    if (at >= 0) plan[at] = linked;
+    else plan.push(linked);
+  }
+
+  return plan.map(({ date, type, opponent, scheduledGameId }, gi) => {
     const official = type === "정식";
     const noise = official ? 0.15 : 0.7; // 연습경기는 기용 폭이 넓다
     const score = (p: Player) => t(p.id) + p.grade * 0.08 + rng() * noise;
@@ -238,7 +252,10 @@ function buildGames(teamId: string, players: Player[], talentOf: Map<string, num
     const scoreFor = batting.reduce((sum, b) => sum + (b.runs ?? 0), 0);
     const scoreAgainst = pitching.reduce((sum, p) => sum + p.er, 0) + (rng() < 0.3 ? 1 : 0);
     const result: GameRecord["result"] = scoreFor > scoreAgainst ? "승" : scoreFor < scoreAgainst ? "패" : "무";
-    return { id: `g${gi + 1}`, teamId, date, type, opponent, scoreFor, scoreAgainst, result, batting, pitching };
+    return {
+      id: `g${gi + 1}`, teamId, date, type, opponent, scoreFor, scoreAgainst, result, batting, pitching,
+      ...(scheduledGameId ? { scheduledGameId } : {}),
+    };
   }).filter(g => g.date < today);
 }
 
@@ -390,10 +407,12 @@ export function buildSeed(): DB {
     { id: "e3", teamId, date: addDays(today, 17), type: "훈련" as const, title: "학부모 참관 훈련", place: "배명고 야구장" },
   ];
 
+  // 예시 가입 코드: 3일 전에 발급, 발급 후 14일 동안 사용 가능(codes.ts 의 CODE_VALID_DAYS)
+  const codeDates = { issuedAt: addDays(today, -3), expiresAt: addDays(today, -3 + CODE_VALID_DAYS) };
   const codes = [
-    { code: "SPTR-PLAYER-01", role: "player" as const, teamId, playerName: "이서진", used: false },
-    { code: "SPTR-PLAYER-02", role: "player" as const, teamId, playerName: "강민재", used: false },
-    { code: "SPTR-COACH-01", role: "coach" as const, teamId, playerName: null, used: false },
+    { code: "SPTR-PLAYER-01", role: "player" as const, teamId, playerName: "이서진", used: false, playerId: "p2", relation: "self" as const, ...codeDates },
+    { code: "SPTR-PLAYER-02", role: "player" as const, teamId, playerName: "강민재", used: false, playerId: "p6", relation: "self" as const, ...codeDates },
+    { code: "SPTR-COACH-01", role: "coach" as const, teamId, playerName: null, used: false, ...codeDates },
   ];
 
   // 정식 경기 기본 라인업 예시 — 추천 자동 배치 결과에 감독 메모를 붙인다

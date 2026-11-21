@@ -211,3 +211,9 @@
 }
 .roster-page .roster-archived, .roster-page .roster-archive-form { margin-bottom: 26px; }
 .roster-page .roster-archive-form + .roster-archived { margin-top: -14px; }
+
+/* 선수 상세 — 보관 사유 선택 · 계정(본인/학부모) 상태 줄 */
+.select.roster-archive-reason { width: auto; min-width: 96px; }
+.kv-row .v.roster-account { display: flex; align-items: center; justify-content: flex-end; gap: 6px 10px; flex-wrap: wrap; min-width: 0; font-weight: 500; }
+.kv-row .v.roster-account .mono { font-weight: 600; white-space: nowrap; }
+.kv-row .v.roster-account > span { overflow-wrap: anywhere; }

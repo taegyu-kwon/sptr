@@ -205,6 +205,38 @@ const TEMPLATES: Record<number, Tpl> = {
 
 const OPPONENTS = ["강동고", "동성고", "한강고", "노원고", "관악고", "마포고", "중랑고"];
 
+/** 예시 선수단(seed.ts)의 선수 id — p1~p24. 예시 공지의 읽음 기록에 쓴다 */
+const SEED_PLAYER_IDS = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
+/** 시연용 선수 계정(player@sptr.demo)의 선수 — 오늘 공지는 직접 열어 볼 수 있게 읽지 않은 상태로 둔다 */
+const DEMO_PLAYER_ID = "p1";
+
+/** 문자열 → 0~1 고정 난수(예시 데이터가 매번 같게) */
+function hash01(s: string) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 10000) / 10000;
+}
+
+/**
+ * 예시 공지의 읽음 기록 — 지난 공지는 대부분(선수마다 90%쯤) 읽었고, 오늘 공지는 절반쯤만 읽은 상태.
+ * 읽은 시각은 공지 작성 시각 뒤, 지금보다 앞이어야 한다(hasRead 기준).
+ */
+function seedReads(date: string, updatedAt: string, today: string): NoticeRead[] {
+  if (date > today) return [];
+  const isToday = date === today;
+  const written = new Date(updatedAt).getTime();
+  const now = Date.now();
+  const reads: NoticeRead[] = [];
+  for (const playerId of SEED_PLAYER_IDS) {
+    if (isToday && playerId === DEMO_PLAYER_ID) continue;
+    if (hash01(`${date}:${playerId}`) >= (isToday ? 0.5 : 0.9)) continue;
+    // 전날 밤 공지가 올라온 뒤 5분~12시간 사이에 읽은 것으로 둔다
+    const at = written + (5 + Math.floor(hash01(`${playerId}:${date}`) * 715)) * 60000;
+    reads.push({ playerId, at: new Date(Math.min(at, now - 60000)).toISOString() });
+  }
+  return reads;
+}
+
 function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "seeded"> {
   const today = todayISO();
   const month = monthOf(today);
@@ -301,6 +333,7 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
       items: tpl.items.map(([start, end, group, title, detail], k) => ({ id: `ni-${date}-${k}`, start, end, group, title, detail })),
       author,
       updatedAt: `${addDays(date, -1)}T20:00:00`,
+      reads: seedReads(date, `${addDays(date, -1)}T20:00:00`, today),
     });
   }
   // 대회 전날은 휴식 공지
@@ -339,6 +372,12 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   return { notices, games, tournaments, directions };
 }
 
+/**
+ * 예시 예정 경기 목록 — 예시 시합 기록(seed.ts)이 지난 예정 경기와 scheduledGameId 로 연결되도록 같은 목록을 내준다.
+ * 오늘 날짜만으로 정해지므로 일정 저장소를 만들 때와 같은 결과가 나온다.
+ */
+export const seedScheduledGames = (teamId: string): ScheduledGame[] => buildScheduleSeed(teamId, "").games;
+
 function addMinutesLabel(hhmm: string, mins: number) {
   const [h, m] = hhmm.split(":").map(Number);
   const t = Math.max(0, h * 60 + m + mins);
@@ -348,7 +387,8 @@ function addMinutesLabel(hhmm: string, mins: number) {
 /* ---------- 저장 ---------- */
 
 // v2: 예시 일정이 고교(서울권) 기준으로 바뀌어 새 키로 시작한다
-const KEY = "sptr-schedule-v2";
+// v3: 예시 공지에 선수 읽음 기록이 생기고, 지난 예정 경기가 예시 시합 기록과 연결돼 새 키로 시작한다
+const KEY = "sptr-schedule-v3";
 const empty = (): ScheduleDB => ({ seeded: [], notices: [], games: [], tournaments: [], directions: [] });
 
 function load(): ScheduleDB {

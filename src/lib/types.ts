@@ -181,7 +181,7 @@ export interface GameRecord {
   result: "승" | "패" | "무";
   batting: BattingLine[];
   pitching: PitchingLine[];
-  /** 월간 일정(sptr-schedule-v1)의 예정 경기 id — "결과 입력"으로 등록한 기록이면 연결된다 */
+  /** 월간 일정(schedule.ts의 ScheduledGame)의 예정 경기 id — "결과 입력"으로 등록한 기록이면 연결된다 */
   scheduledGameId?: string;
 }
 
@@ -197,7 +197,7 @@ export interface LineupBatter {
 export interface SavedLineup {
   id: string;
   teamId: string;
-  /** null = 정식 경기 기본 라인업. 값이 있으면 월간 일정(sptr-schedule-v1) 경기 id의 전용 라인업 */
+  /** null = 정식 경기 기본 라인업. 값이 있으면 월간 일정(schedule.ts의 ScheduledGame) 경기 id의 전용 라인업 */
   gameId: string | null;
   /** 지명타자 사용. 쓰면 투수는 타순 밖(pitcherId), 안 쓰면 타순 중 "투수"가 선발 투수 */
   useDH: boolean;
