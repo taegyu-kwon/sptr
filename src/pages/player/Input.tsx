@@ -1,211 +1,83 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { useStore } from "../../lib/store";
-import { latest } from "../../lib/gpe";
-import { todayISO } from "../../lib/schedule";
-import type { Snapshot } from "../../lib/types";
-import { PageHead, Notice } from "../../components/ui";
+import { evaluate } from "../../lib/gpe";
+import { fmtDate } from "../../lib/format";
+import { SnapshotDetail } from "../../components/MeasureForm";
+import { GradeBadge, Notice, PageHead, Section } from "../../components/ui";
+import "../../styles/measure.css";
 
-type Section = "body" | "athletic" | "practical";
-
-const bodyFields = [
-  { key: "age", label: "나이 (만)", step: 1 },
-  { key: "height", label: "키 (cm)", step: 0.1 },
-  { key: "weight", label: "몸무게 (kg)", step: 0.1 },
-  { key: "skeletalMuscle", label: "골격근량 (kg)", step: 0.1 },
-  { key: "bodyFat", label: "체지방량 (%)", step: 0.1 },
-  { key: "wingspan", label: "윙스팬 (cm)", step: 0.1 },
-  { key: "legLength", label: "다리 길이 (cm)", step: 0.1 },
-  { key: "heightChange1y", label: "최근 1년 키 변화 (cm)", step: 0.1 },
-  { key: "weightChange1y", label: "최근 1년 몸무게 변화 (kg)", step: 0.1 },
-  { key: "jointROM", label: "근위 관절 가동범위 (0-100)", step: 1 },
-] as const;
-
-const athleticFields = [
-  { key: "benchPress", label: "가슴 — 벤치프레스 (kg)", step: 1 },
-  { key: "shoulderPress", label: "어깨 — 숄더프레스 (kg)", step: 1 },
-  { key: "rowPull", label: "등 — 로우 (kg)", step: 1 },
-  { key: "squat", label: "하체 밀기 — 스쿼트 (kg)", step: 1 },
-  { key: "deadlift", label: "하체 당기기 — 데드리프트 (kg)", step: 1 },
-  { key: "dash60", label: "60야드 대시 (초)", step: 0.01 },
-  { key: "dash30", label: "30야드 대시 (초)", step: 0.01 },
-  { key: "run5kPace", label: "5km 러닝 페이스 (분/km)", step: 0.01 },
-  { key: "plankMax", label: "플랭크 max (초)", step: 1 },
-] as const;
-
-const PREFILL_HINT = "최근 측정값이 입력되어 있습니다";
-
-const TABS: { key: Section; label: string }[] = [
-  { key: "body", label: "신체 데이터" },
-  { key: "athletic", label: "운동능력 데이터" },
-  { key: "practical", label: "실전 데이터" },
-];
-
+/** 선수 화면 "측정 기록" — 감독·코치가 입력한 측정값을 날짜별로 보기만 한다 */
 export default function InputPage() {
-  const { db, user, addSnapshot } = useStore();
-  const player = db.players.find(p => p.id === user?.playerId)!;
-  const last = latest(player);
+  const { db, user } = useStore();
+  const player = db.players.find(p => p.id === user?.playerId);
+  /** 선택한 측정일. null이면 가장 최근 기록 */
+  const [picked, setPicked] = useState<string | null>(null);
 
-  const [section, setSection] = useState<Section>("body");
-  const [body, setBody] = useState({ ...last.body });
-  const [athletic, setAthletic] = useState({ ...last.athletic });
-  const [practical, setPractical] = useState({ ...last.practical });
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  if (!player) return <PageHead title="내 측정 기록" desc="연결된 선수 정보를 찾을 수 없습니다." />;
 
-  const isPitcher = practical.kind === "투수";
-  const practicalFields = useMemo(
-    () =>
-      [
-        { key: "maxVelo", label: isPitcher ? "최고 구속 (km/h)" : "송구 속도 (km/h)", step: 1 },
-        { key: "longThrow", label: "멀리 던지기 (m)", step: 1 },
-        { key: "command", label: isPitcher ? "커맨드 점수 (앱 측정, 0-100)" : "송구 정확도 (앱 측정, 0-100)", step: 1 },
-        { key: "errorRate", label: isPitcher ? "에러율 — PFP 기준 (%)" : "에러율 — 펑고 기준 (%)", step: 0.1 },
-      ] as const,
-    [isPitcher]
-  );
-
-  /** 보이지 않는 탭은 브라우저 필수 검사를 받지 않으므로 세 탭을 직접 검사한다 */
-  const firstEmpty = (): { section: Section; label: string } | null => {
-    for (const f of bodyFields) if (!Number.isFinite(body[f.key])) return { section: "body", label: f.label };
-    for (const f of athleticFields) if (!Number.isFinite(athletic[f.key])) return { section: "athletic", label: f.label };
-    for (const f of practicalFields)
-      if (!Number.isFinite(practical[f.key] as number)) return { section: "practical", label: f.label };
-    return null;
-  };
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const empty = firstEmpty();
-    if (empty) {
-      setSection(empty.section);
-      setSaved(false);
-      setError(`'${empty.label}' 값이 비어 있습니다. 입력한 뒤 저장하세요.`);
-      return;
-    }
-    setError(null);
-    const snap: Snapshot = {
-      date: todayISO(),
-      body: { ...body },
-      athletic: { ...athletic },
-      practical: { ...practical },
-    };
-    addSnapshot(player.id, snap);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-
-  const numInput = (
-    value: number,
-    onChange: (v: number) => void,
-    step: number
-  ) => (
-    <input
-      type="number"
-      value={Number.isFinite(value) ? value : ""}
-      step={step}
-      onChange={e => onChange(e.target.value === "" ? NaN : parseFloat(e.target.value))}
-      required
-    />
-  );
+  // 최근 측정이 위로
+  const rows = player.records.map((snap, index) => ({ snap, index, res: evaluate(snap) })).reverse();
+  const current = rows.find(r => `${r.index}:${r.snap.date}` === picked) ?? rows[0];
 
   return (
     <>
       <PageHead
-        title="분야별 데이터 입력"
-        desc="측정한 데이터를 입력하면 새 측정 기록으로 저장되고, 능력치·성장 그래프에 즉시 반영됩니다."
+        title="내 측정 기록"
+        desc="신체·운동능력·실전 측정값을 측정일별로 확인합니다. 능력치·성장 그래프·팀 내 순위는 이 기록으로 계산됩니다."
       />
 
-      <div className="tabs" role="tablist">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={section === t.key}
-            className={section === t.key ? "on" : ""}
-            onClick={() => setSection(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Notice kind="info">
+        측정값은 감독·코치가 입력합니다. 값이 실제와 다르면 코칭스태프에게 수정을 요청하세요.
+      </Notice>
 
-      <form onSubmit={submit}>
-        {section === "body" && (
-          <div className="panel">
-            <div className="card-head">
-              <h3>신체 데이터</h3>
-              <span className="meta">{PREFILL_HINT}</span>
-            </div>
-            <div className="form-grid">
-              {bodyFields.map(f => (
-                <div className="field" key={f.key}>
-                  <label>{f.label}</label>
-                  {numInput(body[f.key], v => setBody(prev => ({ ...prev, [f.key]: v })), f.step)}
-                </div>
-              ))}
-              <div className="field span-all">
-                <label>부상/통증 이력 (쉼표로 구분, 없으면 비워두기)</label>
-                <input
-                  value={body.injuryHistory}
-                  onChange={e => setBody(prev => ({ ...prev, injuryHistory: e.target.value }))}
-                  placeholder="예: 팔꿈치 통증, 햄스트링 염좌"
-                />
-              </div>
-            </div>
+      <Section title="측정 이력" meta={`총 ${rows.length}회 · 날짜를 누르면 그날의 측정값을 봅니다`} className="mt16">
+        <div className="panel">
+          <div className="tbl-wrap">
+            <table className="tbl measure-tbl">
+              <thead>
+                <tr>
+                  <th>측정일</th>
+                  <th className="num">키</th>
+                  <th className="num">몸무게</th>
+                  <th className="num">{current.snap.practical.kind === "투수" ? "최고 구속" : "송구 속도"}</th>
+                  <th className="num">종합 점수</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr
+                    key={`${r.index}:${r.snap.date}`}
+                    className={`clickable${r === current ? " on" : ""}`}
+                    onClick={() => setPicked(`${r.index}:${r.snap.date}`)}
+                  >
+                    <td>
+                      <button type="button" className="link" aria-pressed={r === current}>
+                        {fmtDate(r.snap.date)}
+                      </button>
+                      {i === 0 && <span className="pill brand">최근</span>}
+                    </td>
+                    <td className="num">{r.snap.body.height} cm</td>
+                    <td className="num">{r.snap.body.weight} kg</td>
+                    <td className="num">{r.snap.practical.maxVelo} km/h</td>
+                    <td className="num">
+                      <span className="flex gap8">
+                        <b>{Math.round(r.res.total)}</b>
+                        <GradeBadge grade={r.res.totalGrade} size={20} />
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-
-        {section === "athletic" && (
-          <div className="panel">
-            <div className="card-head">
-              <h3>운동능력 데이터</h3>
-              <span className="meta">{PREFILL_HINT}</span>
-            </div>
-            <div className="form-grid">
-              {athleticFields.map(f => (
-                <div className="field" key={f.key}>
-                  <label>{f.label}</label>
-                  {numInput(athletic[f.key], v => setAthletic(prev => ({ ...prev, [f.key]: v })), f.step)}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {section === "practical" && (
-          <div className="panel">
-            <div className="card-head">
-              <h3>실전 데이터</h3>
-              <span className="meta">{practical.kind} 기준 · {PREFILL_HINT}</span>
-            </div>
-            <div className="form-grid">
-              <div className="field">
-                <label>선수 유형</label>
-                <select
-                  value={practical.kind}
-                  onChange={e => setPractical(prev => ({ ...prev, kind: e.target.value as "투수" | "야수" }))}
-                >
-                  <option value="투수">투수</option>
-                  <option value="야수">야수</option>
-                </select>
-              </div>
-              {practicalFields.map(f => (
-                <div className="field" key={f.key}>
-                  <label>{f.label}</label>
-                  {numInput(practical[f.key] as number, v => setPractical(prev => ({ ...prev, [f.key]: v })), f.step)}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="flex wrap gap12 mt16">
-          <button className="btn" type="submit">측정 기록 저장</button>
-          {saved && <Notice kind="ok">저장되었습니다. 능력치와 성장 그래프에 반영됩니다.</Notice>}
-          {error && <Notice kind="error">{error}</Notice>}
         </div>
-      </form>
+      </Section>
+
+      <Section title={`${fmtDate(current.snap.date)} 측정값`} meta="보기 전용">
+        <div className="panel">
+          <SnapshotDetail snap={current.snap} />
+        </div>
+      </Section>
     </>
   );
 }

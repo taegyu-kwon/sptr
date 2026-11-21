@@ -10,7 +10,7 @@ import {
 import {
   battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, fmtIp, gamesInYear, pitchingTotalsByPlayer,
 } from "../../lib/stats";
-import type { BatHand, PositionDetail, ThrowHand } from "../../lib/types";
+import type { ArchiveReason, BatHand, PositionDetail, ThrowHand } from "../../lib/types";
 import { Avatar, Cell, Cells, Empty, GradeBadge, Notice, PageHead, RiskPill, Seg } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import { JerseyArtwork } from "../../components/ClubArtwork";
@@ -22,6 +22,7 @@ import "../../styles/roster.css";
 const GRADES = [1, 2, 3];
 const THROWS: ThrowHand[] = ["우", "좌"];
 const BATS: BatHand[] = ["우", "좌", "양"];
+const ARCHIVE_REASONS: ArchiveReason[] = ["졸업", "이적", "기타"];
 
 /** 빈 칸은 숫자가 아닌 값으로 돌려 검증에서 걸러낸다 */
 const num = (v: string) => (v.trim() === "" ? NaN : Number(v));
@@ -53,10 +54,14 @@ function Th({ k, sort, onSort, num: isNum, children }: {
 }
 
 export default function PlayersPage() {
-  const { db, user, addPlayer } = useStore();
+  const { db, user, addPlayer, allPlayers, archivePlayer, restorePlayer } = useStore();
   const nav = useNavigate();
   const teamId = user!.teamId;
+  /** db.players는 활동 선수만 — 보관된 선수는 allPlayers에서 따로 꺼낸다 */
   const players = db.players.filter(p => p.teamId === teamId);
+  const archived = allPlayers
+    .filter(p => p.teamId === teamId && p.archived)
+    .sort((a, b) => b.archived!.at.localeCompare(a.archived!.at) || a.name.localeCompare(b.name, "ko"));
   const year = new Date().getFullYear();
   const seasonGames = useMemo(
     () => gamesInYear(db.games.filter(g => g.teamId === teamId), year),
@@ -89,6 +94,35 @@ export default function PlayersPage() {
   /** 가입 코드는 옮겨 적어야 하므로 코치가 닫을 때까지 남긴다 */
   const [done, setDone] = useState<{ name: string; code: string } | null>(null);
 
+  /** 보관 폼(선수·사유 선택) / 보관된 선수 목록 */
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveId, setArchiveId] = useState("");
+  const [archiveReason, setArchiveReason] = useState<ArchiveReason>("졸업");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveMsg, setArchiveMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+
+  const openArchive = (playerId = "") => {
+    setOpen(false);
+    setArchiveId(playerId);
+    setArchiveReason("졸업");
+    setArchiveMsg(null);
+    setArchiveOpen(true);
+    if (playerId) window.scrollTo({ top: 0 });
+  };
+  const submitArchive = (e: React.FormEvent) => {
+    e.preventDefault();
+    const target = players.find(p => p.id === archiveId);
+    if (!target) return setArchiveMsg({ kind: "error", text: "보관할 선수를 선택하세요." });
+    archivePlayer(target.id, archiveReason);
+    setArchiveOpen(false);
+    setShowArchived(true);
+    setArchiveMsg({ kind: "ok", text: `${target.name} 선수를 보관했습니다(${archiveReason}). 명단·순위·라인업·출석에서 빠지고, 지난 경기 기록은 남습니다.` });
+  };
+  const doRestore = (playerId: string, playerName: string) => {
+    const err = restorePlayer(playerId);
+    setArchiveMsg(err ? { kind: "error", text: err } : { kind: "ok", text: `${playerName} 선수를 명단에 복원했습니다.` });
+  };
+
   const resetForm = () => {
     setName("");
     setPositionDetail("투수");
@@ -108,6 +142,7 @@ export default function PlayersPage() {
       setError(null);
     } else {
       resetForm();
+      setArchiveOpen(false);
       setOpen(true);
     }
   };
@@ -123,6 +158,8 @@ export default function PlayersPage() {
     if (!trimmed) return setError("선수 이름을 입력하세요.");
     if (players.some(p => p.name === trimmed))
       return setError("같은 이름의 선수가 이미 있습니다. 구분할 수 있게 입력하세요.");
+    if (archived.some(p => p.name === trimmed))
+      return setError("보관된 선수 중에 같은 이름이 있습니다. 다시 뛰는 선수라면 '보관된 선수'에서 복원하세요.");
     if (!Number.isInteger(bn) || bn < 0 || bn > 99)
       return setError("등번호는 0에서 99 사이의 숫자로 입력하세요.");
     const dup = players.find(p => p.backNumber === bn);
@@ -223,10 +260,25 @@ export default function PlayersPage() {
         title="가능성으로 가득한, 우리 선수단."
         desc="각자의 강점이 모여 하나의 팀이 됩니다. 선수의 기록과 컨디션을 확인하세요."
         actions={
-          <button type="button" className={open ? "btn outline" : "btn"} onClick={toggleForm}>
-            {open ? <Icon.X /> : <Icon.Plus />}
-            {open ? "닫기" : "선수 등록"}
-          </button>
+          <>
+            <button
+              type="button"
+              className="btn outline"
+              aria-expanded={showArchived}
+              onClick={() => setShowArchived(v => !v)}
+            >
+              보관된 선수 {archived.length}명
+            </button>
+            {n > 0 && (
+              <button type="button" className="btn outline" onClick={() => (archiveOpen ? setArchiveOpen(false) : openArchive())}>
+                {archiveOpen ? "보관 닫기" : "선수 보관"}
+              </button>
+            )}
+            <button type="button" className={open ? "btn outline" : "btn"} onClick={toggleForm}>
+              {open ? <Icon.X /> : <Icon.Plus />}
+              {open ? "닫기" : "선수 등록"}
+            </button>
+          </>
         }
       />
 
@@ -244,13 +296,93 @@ export default function PlayersPage() {
           <div className="flex between wrap gap12">
             <div>
               {done.name} 선수를 등록했습니다. 가입 코드{" "}
-              <span className="mono strong code">{done.code}</span> — 선수에게 전달하세요.
+              <span className="mono strong code">{done.code}</span> — 선수에게 전달하세요. 14일 안에 한 번만 쓸 수 있고,
+              학부모 코드와 재발급은 <Link to="/c/team" className="roster-inline-link">팀 관리</Link>에서 합니다.
             </div>
             <button type="button" className="icon-btn sm" aria-label="알림 닫기" onClick={() => setDone(null)}>
               <Icon.X />
             </button>
           </div>
         </Notice>
+      )}
+
+      {archiveMsg && !archiveOpen && (
+        <Notice kind={archiveMsg.kind} className="roster-code mt12">
+          <div className="flex between wrap gap12">
+            <div>{archiveMsg.text}</div>
+            <button type="button" className="icon-btn sm" aria-label="알림 닫기" onClick={() => setArchiveMsg(null)}>
+              <Icon.X />
+            </button>
+          </div>
+        </Notice>
+      )}
+
+      {archiveOpen && (
+        <div className="panel roster-archive-form">
+          <div className="card-head">
+            <h3>선수 보관</h3>
+            <span className="meta">삭제하지 않고 명단에서만 뺍니다 · 언제든 복원할 수 있습니다</span>
+          </div>
+          <form onSubmit={submitArchive}>
+            <div className="form-grid cols-2">
+              <div className="field">
+                <label htmlFor="archive-player">선수</label>
+                <select id="archive-player" value={archiveId} onChange={e => { setArchiveId(e.target.value); setArchiveMsg(null); }}>
+                  <option value="">선수 선택</option>
+                  {[...players].sort((a, b) => b.grade - a.grade || a.backNumber - b.backNumber).map(p => (
+                    <option key={p.id} value={p.id}>{p.grade}학년 · #{p.backNumber} {p.name} ({playerPositionDetail(p)})</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="archive-reason">사유</label>
+                <select id="archive-reason" value={archiveReason} onChange={e => setArchiveReason(e.target.value as ArchiveReason)}>
+                  {ARCHIVE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="field span-all">
+                <span className="help">
+                  보관하면 명단·순위·라인업 추천·출석에서 빠지고, 이 선수(본인·학부모) 계정은 로그인할 수 없게 됩니다.
+                  측정 기록과 지난 경기 기록은 그대로 남고, 저장된 라인업에서는 자리가 비워집니다.
+                </span>
+              </div>
+            </div>
+            {archiveMsg?.kind === "error" && <Notice kind="error" className="mt12">{archiveMsg.text}</Notice>}
+            <div className="flex gap12 wrap mt16">
+              <button className="btn" type="submit">보관</button>
+              <button className="btn ghost" type="button" onClick={() => { setArchiveOpen(false); setArchiveMsg(null); }}>취소</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showArchived && (
+        <div className="panel roster-archived">
+          <div className="card-head">
+            <div className="flex gap8"><h3>보관된 선수</h3><span className="roster-count">{archived.length}명</span></div>
+            <span className="meta">복원하면 명단·순위·출석에 다시 나타나고 계정 로그인도 다시 됩니다</span>
+          </div>
+          {archived.length === 0 ? (
+            <Empty>보관된 선수가 없습니다. 졸업·이적한 선수는 '선수 보관'으로 명단에서 뺄 수 있습니다.</Empty>
+          ) : (
+            <ul className="roster-archived-list">
+              {archived.map(p => (
+                <li key={p.id}>
+                  <Avatar name={p.name} size="sm" />
+                  <div className="info">
+                    <b>{p.name}</b>
+                    <small>#{p.backNumber} · {p.grade}학년 · {playerPositionDetail(p)}</small>
+                  </div>
+                  <span className="pill outline">{p.archived!.reason}</span>
+                  <span className="when">{p.archived!.at} 보관</span>
+                  <button type="button" className="btn outline sm" onClick={() => doRestore(p.id, p.name)} aria-label={`${p.name} 복원`}>
+                    <Icon.Refresh /> 복원
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {open && (
@@ -402,6 +534,7 @@ export default function PlayersPage() {
                     <Th k="total" sort={sort} onSort={onSort} num>종합</Th>
                     <Th k="finalR" sort={sort} onSort={onSort} num>최종 R</Th>
                     <Th k="risk" sort={sort} onSort={onSort}>리스크</Th>
+                    <th>관리</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -454,6 +587,16 @@ export default function PlayersPage() {
                             <span className="pill warn" title={p.status?.note}>{statusLabel(p, today)}</span>
                           )}
                         </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn ghost sm"
+                          aria-label={`${p.name} 보관`}
+                          onClick={e => { e.stopPropagation(); openArchive(p.id); }}
+                        >
+                          보관
+                        </button>
                       </td>
                     </tr>
                   ))}

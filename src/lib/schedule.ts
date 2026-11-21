@@ -32,6 +32,14 @@ export interface DailyNotice {
   items: NoticeItem[];
   author: string;
   updatedAt: string;
+  /** 선수가 이 공지를 연 기록 — 선수당 마지막으로 연 시각 하나. 예전 저장본에는 없을 수 있음 */
+  reads?: NoticeRead[];
+}
+
+/** 훈련 공지 읽음 기록 */
+export interface NoticeRead {
+  playerId: string;
+  at: string; // 연 시각 ISO
 }
 
 export type GameKind = "연습경기" | "정식대회";
@@ -131,7 +139,7 @@ export const visibleIn = (item: { group: Group }, view: Group) =>
 
 type Tpl = { meet: string; place: string; bring: string; message: string; items: [string, string, Group, string, string?][] };
 
-const BASE_PLACE = "학교 운동장";
+const BASE_PLACE = "배명고 야구장";
 const TEMPLATES: Record<number, Tpl> = {
   1: {
     meet: "15:40", place: BASE_PLACE, bring: "운동복, 글러브, 러닝화",
@@ -195,7 +203,7 @@ const TEMPLATES: Record<number, Tpl> = {
   },
 };
 
-const OPPONENTS = ["분당고", "동성고", "한강고", "용인고", "수원북고", "안산고", "광주중앙고"];
+const OPPONENTS = ["강동고", "동성고", "한강고", "노원고", "관악고", "마포고", "중랑고"];
 
 function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "seeded"> {
   const today = todayISO();
@@ -210,18 +218,18 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   const firstSat = addDays(today, (6 - fromISO(today).getDay() + 7) % 7 || 7);
   const t1Start = addDays(firstSat, 7);
   const t1: Tournament = {
-    id: "tn-1", teamId, name: "경기도 추계 중학 야구 리그", startDate: t1Start, endDate: addDays(t1Start, 3), place: "수원 야구장",
+    id: "tn-1", teamId, name: "서울 추계 고교 야구 리그", startDate: t1Start, endDate: addDays(t1Start, 3), place: "목동 야구장",
   };
   const t2Start = addDays(t1Start, 28);
   const t2: Tournament = {
-    id: "tn-2", teamId, name: "전국 중학 동계 야구대회", startDate: t2Start, endDate: addDays(t2Start, 4), place: "부산 기장 드림볼파크",
+    id: "tn-2", teamId, name: "고교 동계 윈터 리그", startDate: t2Start, endDate: addDays(t2Start, 4), place: "부산 기장 드림볼파크",
   };
   tournaments.push(t1, t2);
   games.push(
-    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "수원북고", place: "수원 야구장 A구장", tournamentId: t1.id, round: "1회전" },
-    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "안산고", place: "수원 야구장 B구장", tournamentId: t1.id, round: "2회전" },
-    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산중앙고", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
-    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구경운고", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
+    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "성동고", place: "목동 야구장", tournamentId: t1.id, round: "1회전" },
+    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "은평고", place: "신월 야구장", tournamentId: t1.id, round: "2회전" },
+    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산해운고", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
+    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구달서고", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
   );
 
   const inTournament = (iso: string) => tournaments.some(t => iso >= t.startDate && iso <= t.endDate);
@@ -231,14 +239,14 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   while (d <= last) {
     if (fromISO(d).getDay() === 6 && !inTournament(d)) {
       const opp = OPPONENTS[o % OPPONENTS.length];
-      games.push({ id: `sg-p${o}`, teamId, date: d, time: "10:00", kind: "연습경기", opponent: opp, place: o % 2 === 0 ? "학교 운동장 (홈)" : `${opp.replace(/중$/, "")} 구장`, });
+      games.push({ id: `sg-p${o}`, teamId, date: d, time: "10:00", kind: "연습경기", opponent: opp, place: o % 2 === 0 ? "배명고 야구장 (홈)" : `${opp} 야구장`, });
       o++;
     }
     d = addDays(d, 1);
   }
   // 주중 연습경기 하나(다음 주 수요일)
   const nextWed = addDays(weekStart(today), 9);
-  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "성남서고", place: "학교 운동장 (홈)" });
+  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "잠실고", place: "배명고 야구장 (홈)" });
 
   // 훈련 공지: 지난주 월요일 ~ 다음 주 토요일
   const notices: DailyNotice[] = [];
@@ -252,7 +260,7 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
     let tpl = TEMPLATES[dow];
     if (!game && inTournament(date)) {
       tpl = {
-        meet: "10:00", place: "숙소 앞", bring: "트레이닝복, 러닝화",
+        meet: "10:00", place: BASE_PLACE, bring: "트레이닝복, 러닝화",
         message: "대회 중 경기 없는 날입니다. 회복 위주로 가볍게 움직입니다.",
         items: [
           ["10:00", "10:40", "전체", "회복 러닝 · 스트레칭"],
@@ -339,7 +347,8 @@ function addMinutesLabel(hhmm: string, mins: number) {
 
 /* ---------- 저장 ---------- */
 
-const KEY = "sptr-schedule-v1";
+// v2: 예시 일정이 고교(서울권) 기준으로 바뀌어 새 키로 시작한다
+const KEY = "sptr-schedule-v2";
 const empty = (): ScheduleDB => ({ seeded: [], notices: [], games: [], tournaments: [], directions: [] });
 
 function load(): ScheduleDB {
@@ -374,6 +383,14 @@ export function useSchedule(teamId: string) {
       // 저장 공간 부족 등은 무시(시연용)
     }
   }, [sdb]);
+  // 다른 탭(예: 선수 화면)에서 저장한 내용을 받아 온다 — 읽음 표시·일정 수정이 서로 덮어쓰이지 않게
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === KEY) setSdb(ensureSeed(load(), teamId, "박정후 감독"));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [teamId]);
   const update = (fn: (prev: ScheduleDB) => ScheduleDB) => setSdb(prev => fn(prev));
   return {
     sdb,
@@ -396,3 +413,50 @@ export function resetSchedule(teamId: string) {
   );
   localStorage.setItem(KEY, JSON.stringify(next));
 }
+
+/* ---------- 수정 · 읽음 표시 (update()에 넘겨 쓰는 함수들) ---------- */
+
+/** 예정 경기 수정 — id가 같은 경기를 바꾼다 */
+export const patchGame = (g: ScheduledGame) => (prev: ScheduleDB): ScheduleDB => ({
+  ...prev,
+  games: prev.games.map(x => (x.id === g.id ? g : x)),
+});
+
+/** 대회 수정 — id가 같은 대회를 바꾼다 */
+export const patchTournament = (t: Tournament) => (prev: ScheduleDB): ScheduleDB => ({
+  ...prev,
+  tournaments: prev.tournaments.map(x => (x.id === t.id ? t : x)),
+});
+
+const timeOf = (iso: string) => {
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
+};
+
+/** 선수가 이 공지의 "지금 내용"을 확인했는지 — 읽은 뒤에 공지가 수정되면 다시 미확인으로 본다 */
+export const hasRead = (n: DailyNotice, playerId: string) => {
+  const r = n.reads?.find(x => x.playerId === playerId);
+  return !!r && timeOf(r.at) >= timeOf(n.updatedAt);
+};
+/** 수정 전 내용만 읽은 선수인지 */
+export const readBeforeEdit = (n: DailyNotice, playerId: string) => {
+  const r = n.reads?.find(x => x.playerId === playerId);
+  return !!r && timeOf(r.at) < timeOf(n.updatedAt);
+};
+
+/** 선수가 공지를 열었을 때 읽음 기록을 남긴다(선수당 하나, 다시 열면 시각만 갱신) */
+export const markNoticeRead = (teamId: string, date: string, playerId: string) => (prev: ScheduleDB): ScheduleDB => ({
+  ...prev,
+  notices: prev.notices.map(n =>
+    n.teamId === teamId && n.date === date
+      ? {
+          ...n,
+          // 예시 공지는 작성 시각이 조금 앞선 것도 있어, 읽은 시각이 작성 시각보다 이르지 않게 맞춘다
+          reads: [
+            ...(n.reads ?? []).filter(r => r.playerId !== playerId),
+            { playerId, at: new Date(Math.max(Date.now(), timeOf(n.updatedAt))).toISOString() },
+          ],
+        }
+      : n
+  ),
+});

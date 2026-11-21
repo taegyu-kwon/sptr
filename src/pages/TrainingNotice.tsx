@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useStore } from "../lib/store";
 import {
-  GROUPS, addDays, dowOf, fmtDate, fromISO, groupOf, todayISO, uid, useSchedule, visibleIn, weekStart,
+  GROUPS, addDays, dowOf, fmtDate, fromISO, groupOf, hasRead, markNoticeRead, readBeforeEdit, todayISO, uid, useSchedule, visibleIn, weekStart,
   type DailyNotice, type Group, type NoticeItem,
 } from "../lib/schedule";
 import { Empty, Note, Notice, PageHead, Section, Seg } from "../components/ui";
@@ -68,7 +68,30 @@ export default function TrainingNoticePage() {
         { ...next, teamId, author: user!.name, updatedAt: new Date().toISOString() },
       ],
     }));
-  const removeItem = (id: string) => notice && save({ ...notice, items: notice.items.filter(i => i.id !== id) });
+  const [editItemId, setEditItemId] = useState<string | null>(null);
+  const removeItem = (id: string) => {
+    if (!notice) return;
+    save({ ...notice, items: notice.items.filter(i => i.id !== id) });
+    if (editItemId === id) setEditItemId(null);
+  };
+  const editItem = notice?.items.find(i => i.id === editItemId);
+  const cardProps = isCoach ? { onRemove: removeItem, onEdit: setEditItemId, editingId: editItemId } : {};
+
+  // 선수가 그날 공지를 열면 읽음 기록을 남긴다(공지가 수정되면 다시 열 때 새로 남는다)
+  const myId = !isCoach ? me?.id : undefined;
+  const iRead = !!(notice && myId && hasRead(notice, myId));
+  useEffect(() => {
+    if (!myId || !notice || iRead) return;
+    update(markNoticeRead(teamId, notice.date, myId));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myId, notice?.id, notice?.updatedAt, iRead]);
+
+  // 코치 화면: 확인한 선수 / 아직 안 본 선수
+  const roster = db.players
+    .filter(p => p.teamId === teamId)
+    .sort((a, b) => b.grade - a.grade || a.backNumber - b.backNumber);
+  const readN = notice ? roster.filter(p => hasRead(notice, p.id)).length : 0;
+  const unread = notice ? roster.filter(p => !hasRead(notice, p.id)) : [];
 
   return (
     <>
@@ -165,6 +188,32 @@ export default function TrainingNoticePage() {
               {notice.message && <Note className="mt16"><b>전달 사항</b> {notice.message}</Note>}
             </>
           )}
+
+          {notice && !isCoach && iRead && (
+            <p className="xs faint read-me"><Icon.Check /> 확인했습니다 · 코칭스태프 화면에 읽음으로 표시됩니다</p>
+          )}
+
+          {notice && isCoach && roster.length > 0 && (
+            <div className="read-box">
+              <div className="read-head">
+                <span className="label">선수 확인</span>
+                <b>확인 {readN}/{roster.length}명</b>
+                <div className="read-bar" aria-hidden="true"><i style={{ width: `${Math.round((readN / roster.length) * 100)}%` }} /></div>
+              </div>
+              {unread.length === 0 ? (
+                <p className="xs faint">모든 선수가 확인했습니다.</p>
+              ) : (
+                <div className="read-names">
+                  <span className="xs faint">미확인 {unread.length}명</span>
+                  {unread.map(p => (
+                    <span key={p.id} className="pill outline" title={readBeforeEdit(notice, p.id) ? "공지 수정 전에 확인함" : undefined}>
+                      {p.name}{readBeforeEdit(notice, p.id) && <small> · 수정 전 확인</small>}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Section>
 
@@ -196,7 +245,7 @@ export default function TrainingNoticePage() {
                   <div className="tl-row" key={r.item.id}>
                     <TimeCol it={r.item} />
                     <div className="tl-all">
-                      <ItemCard it={r.item} onRemove={isCoach ? removeItem : undefined} />
+                      <ItemCard it={r.item} {...cardProps} />
                     </div>
                   </div>
                 ) : (
@@ -204,10 +253,10 @@ export default function TrainingNoticePage() {
                     <TimeCol it={(r.p[0] ?? r.f[0])} />
                     <div className="tl-split">
                       <div className="tl-lane">
-                        {r.p.length ? r.p.map(it => <ItemCard key={it.id} it={it} onRemove={isCoach ? removeItem : undefined} />) : <div className="tl-none">투수조 별도 훈련 없음</div>}
+                        {r.p.length ? r.p.map(it => <ItemCard key={it.id} it={it} {...cardProps} />) : <div className="tl-none">투수조 별도 훈련 없음</div>}
                       </div>
                       <div className="tl-lane">
-                        {r.f.length ? r.f.map(it => <ItemCard key={it.id} it={it} onRemove={isCoach ? removeItem : undefined} />) : <div className="tl-none">야수조 별도 훈련 없음</div>}
+                        {r.f.length ? r.f.map(it => <ItemCard key={it.id} it={it} {...cardProps} />) : <div className="tl-none">야수조 별도 훈련 없음</div>}
                       </div>
                     </div>
                   </div>
@@ -220,7 +269,7 @@ export default function TrainingNoticePage() {
                 <div className="tl-row" key={it.id}>
                   <TimeCol it={it} />
                   <div className="tl-all">
-                    <ItemCard it={it} onRemove={isCoach ? removeItem : undefined} />
+                    <ItemCard it={it} {...cardProps} />
                   </div>
                 </div>
               ))}
@@ -236,6 +285,8 @@ export default function TrainingNoticePage() {
           notice={notice}
           notices={notices}
           onSave={save}
+          editItem={editItem}
+          onDoneEdit={() => setEditItemId(null)}
           onDelete={() =>
             window.confirm(`${fmtDate(date)} 훈련 공지를 삭제할까요?`) &&
             update(prev => ({ ...prev, notices: prev.notices.filter(n => !(n.teamId === teamId && n.date === date)) }))
@@ -261,9 +312,11 @@ function TimeCol({ it }: { it: NoticeItem }) {
   );
 }
 
-function ItemCard({ it, onRemove }: { it: NoticeItem; onRemove?: (id: string) => void }) {
+function ItemCard({
+  it, onRemove, onEdit, editingId,
+}: { it: NoticeItem; onRemove?: (id: string) => void; onEdit?: (id: string) => void; editingId?: string | null }) {
   return (
-    <div className={`tl-item g-${groupTone[it.group]}`}>
+    <div className={`tl-item g-${groupTone[it.group]}${onRemove ? " has-tools" : ""}${editingId === it.id ? " editing" : ""}`}>
       <div className="tl-item-head">
         <span className={`tag ${groupTone[it.group]}`}>{it.group === "전체" ? "팀 전체" : it.group}</span>
         <span className="tl-item-time">{it.start}–{it.end}</span>
@@ -274,6 +327,11 @@ function ItemCard({ it, onRemove }: { it: NoticeItem; onRemove?: (id: string) =>
           {it.detail}
           {it.place && <span className="faint"> · {it.place}</span>}
         </div>
+      )}
+      {onEdit && (
+        <button type="button" className="icon-btn sm tl-ed" aria-label="항목 수정" title="항목 수정" onClick={() => onEdit(it.id)}>
+          <Icon.PenLine />
+        </button>
       )}
       {onRemove && (
         <button type="button" className="icon-btn sm danger tl-rm" aria-label="항목 삭제" title="항목 삭제" onClick={() => onRemove(it.id)}>
@@ -287,25 +345,28 @@ function ItemCard({ it, onRemove }: { it: NoticeItem; onRemove?: (id: string) =>
 /* ---------- 코칭스태프 편집 ---------- */
 
 function NoticeEditor({
-  date, notice, notices, onSave, onDelete,
+  date, notice, notices, onSave, onDelete, editItem, onDoneEdit,
 }: {
   date: string;
   notice?: DailyNotice;
   notices: DailyNotice[];
   onSave: (n: DailyNotice) => void;
   onDelete: () => void;
+  /** 수정 중인 훈련 항목 — 있으면 항목 폼이 수정 상태가 된다 */
+  editItem?: NoticeItem;
+  onDoneEdit: () => void;
 }) {
   const blank: DailyNotice = {
     id: uid("nt"), teamId: "", date, off: false, meetTime: "15:40", place: "학교 운동장", bring: "운동복, 글러브", message: "",
     items: [], author: "", updatedAt: "",
   };
   const [draft, setDraft] = useState<DailyNotice>(notice ?? blank);
-  const [start, setStart] = useState("16:00");
-  const [end, setEnd] = useState("17:00");
-  const [group, setGroup] = useState<Group>("전체");
-  const [title, setTitle] = useState("");
-  const [detail, setDetail] = useState("");
   const [saved, setSaved] = useState(false);
+  const itemRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (editItem) itemRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editItem?.id]);
 
   // 복사할 공지: 지난주 같은 요일, 없으면 가장 최근 공지
   const copySrc =
@@ -352,16 +413,13 @@ function NoticeEditor({
     );
   }
 
-  const addItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
+  // 기본 안내 폼에서 아직 저장하지 않은 내용은 건드리지 않고 항목만 바꾼다
+  const saveItem = (it: NoticeItem) => {
     onSave({
-      ...draft,
-      items: [...notice.items, { id: uid("ni"), start, end, group, title: title.trim(), detail: detail.trim() || undefined }],
+      ...notice,
+      items: notice.items.some(x => x.id === it.id) ? notice.items.map(x => (x.id === it.id ? it : x)) : [...notice.items, it],
     });
-    // 다음 항목을 바로 이어서 입력할 수 있게 비운다
-    setTitle("");
-    setDetail("");
+    if (editItem) onDoneEdit();
   };
 
   return (
@@ -372,7 +430,7 @@ function NoticeEditor({
           <form
             onSubmit={e => {
               e.preventDefault();
-              onSave({ ...draft, items: notice.items });
+              onSave({ ...draft, items: notice.items, reads: notice.reads });
               setSaved(true);
             }}
           >
@@ -409,37 +467,74 @@ function NoticeEditor({
         </div>
 
         {!notice.off && (
-          <div className="panel">
-            <div className="card-head"><h3>훈련 항목 추가</h3></div>
-            <form onSubmit={addItem}>
-              <div className="field">
-                <label>대상</label>
-                <Seg value={group} onChange={setGroup} options={GROUPS.map(g => ({ value: g, label: viewLabel[g] }))} />
-              </div>
-              <div className="form-grid cols-2 mt12">
-                <div className="field">
-                  <label>시작</label>
-                  <input type="time" value={start} onChange={e => setStart(e.target.value)} required />
-                </div>
-                <div className="field">
-                  <label>종료</label>
-                  <input type="time" value={end} onChange={e => setEnd(e.target.value)} required />
-                </div>
-                <div className="field span-all">
-                  <label>훈련 내용</label>
-                  <input value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 불펜 세션" required />
-                </div>
-                <div className="field span-all">
-                  <label>세부 내용 (선택)</label>
-                  <input value={detail} onChange={e => setDetail(e.target.value)} placeholder="예: 존 4분할 타겟 30구" />
-                </div>
-              </div>
-              <p className="xs faint">투수조·야수조가 같은 시작 시간이면 팀 전체 보기에서 나란히 보입니다.</p>
-              <button className="btn mt12" type="submit"><Icon.Plus />항목 추가</button>
-            </form>
+          <div className={`panel${editItem ? " editing" : ""}`} ref={itemRef}>
+            <ItemForm key={editItem?.id ?? "new"} edit={editItem} onSubmit={saveItem} onCancel={onDoneEdit} />
           </div>
         )}
       </div>
     </Section>
+  );
+}
+
+/** 훈련 항목 추가·수정 폼 — 수정할 항목이 바뀌면 key로 새로 만든다 */
+function ItemForm({ edit, onSubmit, onCancel }: { edit?: NoticeItem; onSubmit: (it: NoticeItem) => void; onCancel: () => void }) {
+  const [start, setStart] = useState(edit?.start ?? "16:00");
+  const [end, setEnd] = useState(edit?.end ?? "17:00");
+  const [group, setGroup] = useState<Group>(edit?.group ?? "전체");
+  const [title, setTitle] = useState(edit?.title ?? "");
+  const [detail, setDetail] = useState(edit?.detail ?? "");
+  const [err, setErr] = useState("");
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    if (end <= start) {
+      setErr("종료 시간은 시작 시간보다 늦어야 합니다.");
+      return;
+    }
+    setErr("");
+    onSubmit({ ...edit, id: edit?.id ?? uid("ni"), start, end, group, title: title.trim(), detail: detail.trim() || undefined });
+    // 다음 항목을 바로 이어서 입력할 수 있게 비운다
+    setTitle("");
+    setDetail("");
+  };
+
+  return (
+    <>
+      <div className="card-head">
+        <h3>{edit ? "훈련 항목 수정" : "훈련 항목 추가"}</h3>
+        {edit && <span className="meta">{edit.start}–{edit.end} {edit.title}</span>}
+      </div>
+      <form onSubmit={submit}>
+        <div className="field">
+          <label>대상</label>
+          <Seg value={group} onChange={setGroup} options={GROUPS.map(g => ({ value: g, label: viewLabel[g] }))} />
+        </div>
+        <div className="form-grid cols-2 mt12">
+          <div className="field">
+            <label htmlFor="ni-start">시작</label>
+            <input id="ni-start" type="time" value={start} onChange={e => setStart(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label htmlFor="ni-end">종료</label>
+            <input id="ni-end" type="time" value={end} onChange={e => setEnd(e.target.value)} required />
+          </div>
+          <div className="field span-all">
+            <label htmlFor="ni-title">훈련 내용</label>
+            <input id="ni-title" value={title} onChange={e => setTitle(e.target.value)} placeholder="예: 불펜 세션" required />
+          </div>
+          <div className="field span-all">
+            <label htmlFor="ni-detail">세부 내용 (선택)</label>
+            <input id="ni-detail" value={detail} onChange={e => setDetail(e.target.value)} placeholder="예: 존 4분할 타겟 30구" />
+          </div>
+        </div>
+        <p className="xs faint">투수조·야수조가 같은 시작 시간이면 팀 전체 보기에서 나란히 보입니다.</p>
+        {err && <Notice kind="error" className="mt12">{err}</Notice>}
+        <div className="flex gap8 wrap mt12">
+          <button className="btn" type="submit">{edit ? <><Icon.Check />수정 저장</> : <><Icon.Plus />항목 추가</>}</button>
+          {edit && <button className="btn ghost" type="button" onClick={onCancel}>취소</button>}
+        </div>
+      </form>
+    </>
   );
 }

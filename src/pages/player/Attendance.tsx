@@ -29,6 +29,8 @@ export default function PlayerAttendancePage() {
   const year = today.slice(0, 4);
   const injured = player.status?.kind === "재활" || player.status?.kind === "부상";
   const st = statusLabel(player, today);
+  /** 학부모 계정은 보기만 — 체크·신고 버튼을 내지 않는다 */
+  const readOnly = user?.relation === "parent";
 
   const doCheck = (status: AttendanceStatus, n?: string) => {
     const err = checkIn(player.id, player.teamId, today, status, n);
@@ -54,7 +56,10 @@ export default function PlayerAttendancePage() {
 
   return (
     <>
-      <PageHead title="출석" desc="훈련에 오면 오늘 출석을 직접 체크합니다. 늦거나 못 오면 미리 알려 주세요." />
+      <PageHead
+        title="출석"
+        desc={readOnly ? `${player.name} 선수의 출석 현황입니다. 출석 체크는 선수 본인 계정에서 합니다.` : "훈련에 오면 오늘 출석을 직접 체크합니다. 늦거나 못 오면 미리 알려 주세요."}
+      />
 
       <div className="panel">
         <div className="att-day">
@@ -77,12 +82,14 @@ export default function PlayerAttendancePage() {
               </div>
               {todayRec.note && <span className="small dim">사유: {todayRec.note}</span>}
               {todayRec.source === "코치" && <span className="small faint">코치가 수정한 기록입니다.</span>}
-              {(todayRec.status === "결석" || todayRec.status === "사유결석") && (
+              {!readOnly && (todayRec.status === "결석" || todayRec.status === "사유결석") && (
                 <button type="button" className="btn outline sm" onClick={() => doCheck("출석")}>
                   올 수 있게 됐어요 — 출석 체크
                 </button>
               )}
             </>
+          ) : readOnly ? (
+            <Notice kind="info">오늘은 아직 출석 체크 전입니다. 학부모 계정은 출석을 보기만 할 수 있습니다.</Notice>
           ) : (
             <button type="button" className="btn att-big" onClick={() => doCheck("출석")}>
               <Icon.Check />
@@ -90,7 +97,7 @@ export default function PlayerAttendancePage() {
             </button>
           )}
 
-          {!report && !todayRec && (
+          {!readOnly && !report && !todayRec && (
             <div className="flex gap8 wrap">
               <button type="button" className="btn ghost sm" onClick={() => openReport("late")}>늦어요</button>
               <button type="button" className="btn ghost sm" onClick={() => openReport("absent")}>못 가요</button>

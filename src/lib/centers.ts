@@ -4,6 +4,8 @@
    센터 앱 연동(integration)·예약(booking) 칸을 그대로 채워 쓰도록 구조만 열어 둔다.
    ================================================================ */
 
+import { addDays, todayISO } from "./schedule";
+
 /** 시·도 17곳 */
 export type Region =
   | "서울" | "인천" | "경기" | "강원" | "충남" | "세종" | "충북" | "대전" | "경북"
@@ -63,7 +65,7 @@ export type MeasureCenter = {
   status: "listed" | "partner";
   /** 센터 운영 앱 연동 — 연동되면 측정 결과가 선수 프로필로 바로 들어온다 */
   integration: { connected: boolean; source?: "center_app"; externalId?: string; lastSyncAt?: string };
-  /** 예약 — 아직 기능 없음. 나중에 enabled 와 방식만 채운다 */
+  /** 예약 — 아직 기능 없음(화면에는 전화 문의만 둔다). 나중에 enabled 와 방식만 채운다 */
   booking: { enabled: boolean; method?: "in_app" | "external"; url?: string };
   updatedAt: string;
 };
@@ -71,98 +73,98 @@ export type MeasureCenter = {
 /** 예시 센터 — 이름·연락처·주소는 모두 가짜다 */
 export const SAMPLE_CENTERS: MeasureCenter[] = [
   {
-    id: "ctr-01", name: "예시 피칭랩 강남", kind: "트레이닝센터", region: "서울", district: "강남구", address: "서울 강남구 (예시 주소)",
+    id: "ctr-01", name: "강남 피칭 랩", kind: "트레이닝센터", region: "서울", district: "강남구", address: "서울 강남구",
     lat: 37.497, lng: 127.027, equipment: ["rapsodo_pitch", "rapsodo_hit", "highspeed", "forceplate", "inbody"],
     prices: [{ label: "투구 측정", price: 60000, unit: "1회" }, { label: "타격 측정", price: 60000, unit: "1회" }, { label: "팀 단체 측정", price: 35000, unit: "1인", note: "10명 이상" }],
-    groupMeasure: true, contact: { phone: "02-000-0001", instagram: "@example_pitchlab" }, hours: "평일 13–22시 · 주말 10–18시",
-    status: "partner", integration: { connected: true, source: "center_app", externalId: "demo-a", lastSyncAt: "2026-11-10" }, booking: { enabled: false }, updatedAt: "2026-11-10",
+    groupMeasure: true, contact: { phone: "02-000-0001", instagram: "@gangnam_pitchinglab" }, hours: "평일 13–22시 · 주말 10–18시",
+    status: "partner", integration: { connected: true, source: "center_app", externalId: "demo-a", lastSyncAt: addDays(todayISO(), -2) }, booking: { enabled: false }, updatedAt: addDays(todayISO(), -2),
   },
   {
-    id: "ctr-02", name: "예시 베이스볼 퍼포먼스 수원", kind: "트레이닝센터", region: "경기", district: "수원시", address: "경기 수원시 (예시 주소)",
+    id: "ctr-02", name: "수원 베이스볼 퍼포먼스 센터", kind: "트레이닝센터", region: "경기", district: "수원시", address: "경기 수원시",
     lat: 37.263, lng: 127.028, equipment: ["trackman", "blast", "highspeed", "forceplate"],
     prices: [{ label: "종합 측정(투구+타격+체력)", price: 90000, unit: "1회" }, { label: "팀 단체 측정", price: 45000, unit: "1인", note: "15명 이상" }],
     groupMeasure: true, contact: { phone: "031-000-0002" }, hours: "매일 10–22시",
-    status: "partner", integration: { connected: true, source: "center_app", externalId: "demo-b", lastSyncAt: "2026-11-08" }, booking: { enabled: false }, updatedAt: "2026-11-08",
+    status: "partner", integration: { connected: true, source: "center_app", externalId: "demo-b", lastSyncAt: addDays(todayISO(), -4) }, booking: { enabled: false }, updatedAt: addDays(todayISO(), -4),
   },
   {
-    id: "ctr-03", name: "예시 타격 아카데미 송파", kind: "레슨장", region: "서울", district: "송파구", address: "서울 송파구 (예시 주소)",
+    id: "ctr-03", name: "송파 베이스볼 랩", kind: "레슨장", region: "서울", district: "송파구", address: "서울 송파구",
     lat: 37.514, lng: 127.106, equipment: ["rapsodo_hit", "blast", "radar"],
     prices: [{ label: "타격 측정", price: 40000, unit: "1회" }, { label: "레슨 포함 측정", price: 70000, unit: "1회" }],
     groupMeasure: false, contact: { phone: "02-000-0003" }, hours: "평일 15–22시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-28",
   },
   {
-    id: "ctr-04", name: "예시 야구 트레이닝 일산", kind: "트레이닝센터", region: "경기", district: "고양시", address: "경기 고양시 (예시 주소)",
+    id: "ctr-04", name: "일산 야구 트레이닝 센터", kind: "트레이닝센터", region: "경기", district: "고양시", address: "경기 고양시",
     lat: 37.658, lng: 126.832, equipment: ["rapsodo_pitch", "radar", "inbody"],
     prices: [{ label: "투구 측정", price: 50000, unit: "1회" }, { label: "팀 단체 측정", price: null, unit: "1인", note: "인원에 따라 협의" }],
     groupMeasure: true, contact: { phone: "031-000-0004" }, hours: "평일 14–22시 · 토 10–16시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-20",
   },
   {
-    id: "ctr-05", name: "예시 피칭 스튜디오 성남", kind: "레슨장", region: "경기", district: "성남시", address: "경기 성남시 (예시 주소)",
+    id: "ctr-05", name: "성남 피칭 스튜디오", kind: "레슨장", region: "경기", district: "성남시", address: "경기 성남시",
     lat: 37.42, lng: 127.127, equipment: ["rapsodo_pitch", "highspeed"],
     prices: [{ label: "투구 측정 + 영상 분석", price: 55000, unit: "1회" }],
     groupMeasure: false, contact: { phone: "031-000-0005" }, hours: "예약제",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-09-30",
   },
   {
-    id: "ctr-06", name: "예시 베이스볼 센터 인천", kind: "트레이닝센터", region: "인천", district: "연수구", address: "인천 연수구 (예시 주소)",
+    id: "ctr-06", name: "인천 베이스볼 센터", kind: "트레이닝센터", region: "인천", district: "연수구", address: "인천 연수구",
     lat: 37.41, lng: 126.678, equipment: ["rapsodo_pitch", "rapsodo_hit", "inbody"],
     prices: [{ label: "투구 또는 타격 측정", price: 45000, unit: "1회" }, { label: "팀 단체 측정", price: 30000, unit: "1인", note: "10명 이상" }],
     groupMeasure: true, contact: { phone: "032-000-0006" }, hours: "평일 13–21시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-12",
   },
   {
-    id: "ctr-07", name: "예시 퍼포먼스랩 대전", kind: "트레이닝센터", region: "대전", district: "유성구", address: "대전 유성구 (예시 주소)",
+    id: "ctr-07", name: "대전 퍼포먼스 랩", kind: "트레이닝센터", region: "대전", district: "유성구", address: "대전 유성구",
     lat: 36.362, lng: 127.356, equipment: ["trackman", "forceplate", "inbody"],
     prices: [{ label: "종합 측정", price: 80000, unit: "1회" }, { label: "팀 단체 측정", price: 40000, unit: "1인" }],
     groupMeasure: true, contact: { phone: "042-000-0007" }, hours: "평일 12–21시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-05",
   },
   {
-    id: "ctr-08", name: "예시 야구 아카데미 청주", kind: "아카데미", region: "충북", district: "청주시", address: "충북 청주시 (예시 주소)",
+    id: "ctr-08", name: "청주 야구 아카데미", kind: "아카데미", region: "충북", district: "청주시", address: "충북 청주시",
     lat: 36.642, lng: 127.489, equipment: ["radar", "highspeed"],
     prices: [{ label: "구속 측정 + 영상", price: 30000, unit: "1회" }],
     groupMeasure: true, contact: { phone: "043-000-0008" }, hours: "평일 16–21시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-09-18",
   },
   {
-    id: "ctr-09", name: "예시 피칭랩 대구", kind: "트레이닝센터", region: "대구", district: "수성구", address: "대구 수성구 (예시 주소)",
+    id: "ctr-09", name: "대구 피칭 랩", kind: "트레이닝센터", region: "대구", district: "수성구", address: "대구 수성구",
     lat: 35.858, lng: 128.631, equipment: ["rapsodo_pitch", "rapsodo_hit", "blast", "forceplate"],
     prices: [{ label: "투구 측정", price: 50000, unit: "1회" }, { label: "타격 측정", price: 50000, unit: "1회" }, { label: "팀 단체 측정", price: 32000, unit: "1인", note: "12명 이상" }],
     groupMeasure: true, contact: { phone: "053-000-0009" }, hours: "매일 11–22시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-30",
   },
   {
-    id: "ctr-10", name: "예시 베이스볼 랩 부산", kind: "트레이닝센터", region: "부산", district: "해운대구", address: "부산 해운대구 (예시 주소)",
+    id: "ctr-10", name: "부산 베이스볼 랩", kind: "트레이닝센터", region: "부산", district: "해운대구", address: "부산 해운대구",
     lat: 35.163, lng: 129.163, equipment: ["trackman", "blast", "highspeed", "inbody"],
     prices: [{ label: "종합 측정", price: 85000, unit: "1회" }, { label: "팀 단체 측정", price: 42000, unit: "1인", note: "10명 이상" }],
     groupMeasure: true, contact: { phone: "051-000-0010" }, hours: "평일 13–22시 · 주말 10–17시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-11-02",
   },
   {
-    id: "ctr-11", name: "예시 타격 레슨장 창원", kind: "레슨장", region: "경남", district: "창원시", address: "경남 창원시 (예시 주소)",
+    id: "ctr-11", name: "창원 타격 레슨장", kind: "레슨장", region: "경남", district: "창원시", address: "경남 창원시",
     lat: 35.228, lng: 128.681, equipment: ["rapsodo_hit", "radar"],
     prices: [{ label: "타격 측정", price: 35000, unit: "1회" }],
     groupMeasure: false, contact: { phone: "055-000-0011" }, hours: "평일 15–22시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-09-12",
   },
   {
-    id: "ctr-12", name: "예시 야구 트레이닝 광주", kind: "트레이닝센터", region: "광주", district: "서구", address: "광주 서구 (예시 주소)",
+    id: "ctr-12", name: "광주 야구 트레이닝 센터", kind: "트레이닝센터", region: "광주", district: "서구", address: "광주 서구",
     lat: 35.152, lng: 126.89, equipment: ["rapsodo_pitch", "forceplate", "inbody"],
     prices: [{ label: "투구 측정", price: 45000, unit: "1회" }, { label: "체력 측정", price: 30000, unit: "1회" }],
     groupMeasure: true, contact: { phone: "062-000-0012" }, hours: "평일 13–21시",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-10-15",
   },
   {
-    id: "ctr-13", name: "예시 피칭 아카데미 전주", kind: "아카데미", region: "전북", district: "전주시", address: "전북 전주시 (예시 주소)",
+    id: "ctr-13", name: "전주 피칭 아카데미", kind: "아카데미", region: "전북", district: "전주시", address: "전북 전주시",
     lat: 35.824, lng: 127.148, equipment: ["rapsodo_pitch", "radar"],
     prices: [{ label: "투구 측정", price: null, unit: "1회", note: "문의" }],
     groupMeasure: false, contact: { phone: "063-000-0013" }, hours: "예약제",
     status: "listed", integration: { connected: false }, booking: { enabled: false }, updatedAt: "2026-08-29",
   },
   {
-    id: "ctr-14", name: "예시 베이스볼 센터 원주", kind: "트레이닝센터", region: "강원", district: "원주시", address: "강원 원주시 (예시 주소)",
+    id: "ctr-14", name: "원주 베이스볼 센터", kind: "트레이닝센터", region: "강원", district: "원주시", address: "강원 원주시",
     lat: 37.342, lng: 127.92, equipment: ["radar", "inbody", "highspeed"],
     prices: [{ label: "기본 측정(구속·체성분·영상)", price: 35000, unit: "1회" }, { label: "팀 단체 측정", price: 25000, unit: "1인" }],
     groupMeasure: true, contact: { phone: "033-000-0014" }, hours: "평일 14–21시",

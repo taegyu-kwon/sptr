@@ -27,6 +27,9 @@ export default function OverviewPage() {
   const draws = seasonGames.filter(g => g.result === "무").length;
   const attendance = db.attendance.filter(a => a.teamId === teamId && a.date === today);
   const attended = attendance.filter(a => a.status === "출석" || a.status === "지각").length;
+  // 일요일·휴식 공지 날처럼 훈련이 없고 체크도 없는 날은 0/24 대신 "훈련 없는 날"로 보여 준다
+  const todayNotice = notices.find(n => n.date === today);
+  const restDay = attendance.length === 0 && (todayNotice ? todayNotice.off : !games.some(g => g.date === today));
   const care = players.filter(p => p.status?.kind === "부상" || p.status?.kind === "재활");
   const avg = players.length ? Math.round(players.reduce((sum, p) => sum + evaluatePlayer(p).total, 0) / players.length) : null;
   const focus = directions.find(d => d.month === monthOf(today));
@@ -42,7 +45,7 @@ export default function OverviewPage() {
     <div className="overview-metrics">
       <Link to="/c/players"><span className="metric-icon blue"><Icon.Users /></span><div><span>함께하는 선수</span><b>{players.length}<small>명</small></b></div><Icon.ChevronRight /></Link>
       <Link to="/c/ranking"><span className="metric-icon purple"><Icon.TrendingUp /></span><div><span>팀 평균 종합 점수</span><b>{avg ?? "—"}<small>점</small></b></div><Icon.ChevronRight /></Link>
-      <Link to="/c/attendance"><span className="metric-icon green"><Icon.Check /></span><div><span>오늘 출석 · 지각</span><b>{attended}<small>/ {players.length}명</small></b></div><Icon.ChevronRight /></Link>
+      <Link to="/c/attendance"><span className="metric-icon green"><Icon.Check /></span><div><span>오늘 출석 · 지각</span>{restDay ? <b>—<small>훈련 없는 날</small></b> : <b>{attended}<small>/ {players.length}명</small></b>}</div><Icon.ChevronRight /></Link>
       <Link to="/c/players"><span className="metric-icon orange"><Icon.Shield /></span><div><span>재활 · 부상 선수</span><b>{care.length}<small>명</small></b></div><Icon.ChevronRight /></Link>
     </div>
     <div className="overview-body-grid">

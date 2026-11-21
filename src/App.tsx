@@ -26,6 +26,8 @@ import MonthlySchedulePage from "./pages/MonthlySchedule";
 import AttendancePage from "./pages/coach/Attendance";
 import PlayerAttendancePage from "./pages/player/Attendance";
 import CentersPage from "./pages/Centers";
+import TeamPage from "./pages/coach/Team";
+import AccountPage from "./pages/Account";
 
 export default function App() {
   const { user } = useStore();
@@ -75,8 +77,10 @@ export default function App() {
             <Route path="/c/games" element={<GamesPage />} />
             <Route path="/c/attendance" element={<AttendancePage />} />
             <Route path="/c/centers" element={<CentersPage />} />
+            <Route path="/c/team" element={<TeamPage />} />
           </>
         )}
+        <Route path="/account" element={<AccountPage />} />
         <Route path="*" element={<Navigate to={home} replace />} />
       </Routes>
     </Layout>

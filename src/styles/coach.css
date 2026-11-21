@@ -10,3 +10,13 @@
 
 /* 랭킹 톱3 — 점수는 줄바꿈 없이 */
 .top3 .display { white-space: nowrap; }
+
+/* ---------- 코칭 피드백: 필터 · 수정/삭제 ---------- */
+.fb-form { scroll-margin-top: 72px; }
+.fb-form.editing { box-shadow: 0 0 0 1px var(--brand-line); }
+.fb-filters { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.fb-filters .field { flex: 1 1 140px; min-width: 0; }
+.fb-filters .link-btn { margin-bottom: 10px; }
+.fb-main { min-width: 0; flex: 1; }
+.fb-tools { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.fb-item.editing { background: var(--surface-2); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: var(--r-md); }

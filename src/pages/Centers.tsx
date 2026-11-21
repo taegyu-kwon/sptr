@@ -56,7 +56,7 @@ export default function CentersPage() {
         title="측정 센터 지도"
         desc="랩소도·트랙맨 같은 측정 장비를 갖춘 센터와 레슨장을 지역·장비로 찾습니다. 협업 센터에서 측정한 결과는 센터 앱 연동으로 선수 프로필에 쌓입니다."
       />
-      <Notice kind="info" className="centers-demo">지금 보이는 센터는 모두 <b>예시 데이터</b>입니다. 이름·주소·연락처·가격은 실제와 관계없습니다.</Notice>
+      <Notice kind="info" className="centers-demo"><b>예시 데이터</b> — 지금 보이는 센터의 이름·주소·연락처·가격은 실제와 관계없습니다.</Notice>
 
       <div className="panel centers-filter">
         <div className="centers-filter-row">
@@ -105,7 +105,7 @@ export default function CentersPage() {
                 );
               })}
             </div>
-            <p className="centers-map-note">간단 지도입니다. 실제 지도는 지도 서비스 연결 후 센터 좌표로 표시합니다.</p>
+            <p className="centers-map-note">숫자는 지금 조건에 맞는 센터 수입니다.</p>
           </div>
 
           {selected && <CenterDetail c={selected} onClose={() => setSelectedId(null)} className="detail-side" />}
@@ -182,7 +182,6 @@ function CenterDetail({ c, onClose, className }: { c: MeasureCenter; onClose: ()
 
       <div className="center-actions">
         <a className="btn" href={`tel:${c.contact.phone}`}>전화 문의</a>
-        <button type="button" className="btn outline" disabled title="예약 기능은 준비 중입니다">예약 (준비 중)</button>
       </div>
     </div>
   );

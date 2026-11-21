@@ -1,0 +1,57 @@
+/* 팀 관리 · 내 계정 · 사이드바 계정 링크 */
+.sidebar-account-link { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; padding: 6px; margin: -6px; border-radius: 8px; color: inherit; text-decoration: none; transition: background .16s; }
+.sidebar-account-link:hover { background: #f5f7fb; }
+.sidebar-account-link > div { flex: 1; min-width: 0; }
+.sidebar-account-link b, .sidebar-account-link div > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.team-page .panel + .panel { margin-top: 18px; }
+.team-form { max-width: 720px; }
+.team-coaches { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.team-coach { display: flex; align-items: center; gap: 11px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 9px; min-width: 0; }
+.team-coach > div { min-width: 0; flex: 1; }
+.team-coach b { display: block; font-size: 13px; }
+.team-coach small { display: block; font-size: 12px; color: var(--fg-3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 24px 0 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.team-subhead h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.team-subhead span { font-size: 12px; color: var(--fg-3); }
+.team-code-list { display: flex; flex-direction: column; gap: 8px; }
+.team-code-row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid var(--line); border-radius: 9px; }
+.team-code-row .grow { flex: 1; min-width: 0; }
+.team-code { font-family: var(--mono); font-weight: 600; font-size: 13px; letter-spacing: .02em; white-space: nowrap; }
+.team-code.off { color: var(--fg-3); text-decoration: line-through; font-weight: 500; }
+.team-code-meta { font-size: 12px; color: var(--fg-3); white-space: nowrap; }
+.team-code-meta.warn { color: var(--warn); }
+.team-codes-tbl td { vertical-align: top; }
+.team-codes-tbl .code-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 190px; }
+.team-codes-tbl .code-cell .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.team-codes-tbl .code-cell .btn.sm { height: 28px; padding: 0 10px; }
+.team-codes-tbl tr.fresh td { background: var(--brand-soft); }
+.team-summary { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.account-page .panel { max-width: 720px; }
+.account-page .panel + .panel { margin-top: 18px; }
+.account-id { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.account-id b { display: block; font-size: 16px; }
+.account-id span:not(.avatar) { display: block; font-size: 12px; color: var(--fg-3); margin-top: 3px; }
+
+/* 로그인 화면 — 체험 버튼 · 가입 안내 */
+.auth-try { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.auth-demo .auth-try-note { color: var(--fg-3); }
+.auth-demo .auth-codes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+@media (max-width: 420px) { .auth-try { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .team-code-row .team-code-meta.grow { flex-basis: 100%; order: 3; white-space: normal; }
+  .team-code-row .btn { margin-left: auto; }
+  /* 좁은 화면: 표를 선수별 묶음으로 세로 배치 */
+  .team-codes-tbl thead { display: none; }
+  .team-codes-tbl, .team-codes-tbl tbody, .team-codes-tbl tr, .team-codes-tbl td { display: block; width: 100%; }
+  .team-codes-tbl td, .team-codes-tbl th { white-space: normal; }
+  .team-codes-tbl tr { padding: 14px var(--pad); border-bottom: 1px solid var(--line); }
+  .team-codes-tbl tbody tr:last-child { border-bottom: 0; }
+  .panel > .tbl-wrap .team-codes-tbl td { padding: 0; border: 0; }
+  .team-codes-tbl td[data-label] { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 8px; margin-top: 12px; }
+  .team-codes-tbl td[data-label]::before { content: attr(data-label); font-size: 12px; color: var(--fg-3); padding-top: 2px; }
+  .team-codes-tbl .code-cell { min-width: 0; }
+  .team-codes-tbl tr.fresh { background: var(--brand-soft); }
+  .team-codes-tbl tr.fresh td { background: transparent; }
+}

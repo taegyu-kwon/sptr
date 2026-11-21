@@ -152,3 +152,28 @@
 .dir-list li.done .txt { color: var(--fg-3); text-decoration: line-through; text-decoration-color: var(--fg-4); }
 .dir-add { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 8px; margin-top: 14px; }
 @media (max-width: 480px) { .dir-add { grid-template-columns: 1fr auto; } .dir-add select { grid-column: 1 / -1; } }
+
+/* ---------- 수정 상태 · 읽음 표시 · 경기 결과 ---------- */
+.panel.editing { box-shadow: 0 0 0 1px var(--brand-line); }
+.tl-item.editing { box-shadow: 0 0 0 1px var(--brand-line); }
+.tl-item.has-tools .tl-title { padding-right: 60px; }
+.tl-ed { position: absolute; top: 8px; right: 40px; }
+
+.read-box { margin-top: 16px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); }
+.read-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.read-head .label { font-size: 11.5px; color: var(--fg-3); }
+.read-head b { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.read-bar { flex: 1 1 120px; height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.read-bar i { display: block; height: 100%; background: var(--good); border-radius: inherit; transition: width 0.3s var(--ease); }
+.read-box > p { margin: 8px 0 0; }
+.read-names { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
+.read-names small { font-size: 10.5px; color: var(--fg-3); font-weight: 400; }
+.read-me { display: flex; align-items: center; gap: 5px; margin: 12px 0 0; }
+.read-me svg { width: 13px; height: 13px; color: var(--good); }
+
+.game-sched .right { flex-wrap: wrap; justify-content: flex-end; white-space: normal; }
+.game-result { font-variant-numeric: tabular-nums; font-weight: 700; }
+@media (max-width: 640px) {
+  .game-sched { flex-wrap: wrap; row-gap: 8px; }
+  .game-sched .right { flex-basis: 100%; margin-left: 0; justify-content: flex-start; }
+}

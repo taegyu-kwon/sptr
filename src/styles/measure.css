@@ -1,0 +1,31 @@
+/* ================================================================
+   측정 기록 — 입력 폼(코치)·측정 이력·보기 전용 상세(선수), SBI/SMI 이력
+   토큰만 쓰고, styles.css의 공용 클래스는 다시 정의하지 않는다.
+   ================================================================ */
+
+/* 측정일 + 안내 문구 한 줄 */
+.measure-date { display: flex; align-items: flex-end; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.measure-date .field { flex: 0 0 200px; }
+.measure-date > .small { padding-bottom: 10px; line-height: 1.45; }
+
+/* 이력 표 — 선택한 줄, 줄 끝 버튼 묶음 */
+.measure-tbl td.acts { text-align: right; white-space: nowrap; }
+.measure-tbl td.acts .btn + .btn { margin-left: 6px; }
+.measure-tbl tr.on td { background: var(--surface-2); }
+.measure-tbl tr.on td:first-child { box-shadow: inset 3px 0 0 var(--brand); }
+.measure-tbl .pill { margin-left: 8px; }
+
+/* 보기 전용 상세의 값은 길어질 수 있어(부상 이력) 줄바꿈 허용 */
+.measure-detail .kv-row .v { word-break: keep-all; overflow-wrap: anywhere; }
+
+@media (max-width: 640px) {
+  .measure-date .field { flex: 1 1 100%; }
+  .measure-date > .small { padding-bottom: 0; }
+}
+
+/* 폼을 열 때 이 위치로 스크롤 — 상단 바에 가리지 않게 */
+.measure-anchor { scroll-margin-top: 76px; }
+
+/* SBI/SMI 입력 — 측정일 줄과 저장 줄 */
+.sbi-save-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.sbi-save-row > .small { flex: 1 1 260px; min-width: 0; line-height: 1.5; }

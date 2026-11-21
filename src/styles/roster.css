@@ -192,3 +192,22 @@
   .roster-table-foot > span:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .athlete-card:hover { transform: none; } }
+
+/* 선수 보관 · 보관된 선수 */
+.roster-page .page-head .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.roster-inline-link { color: var(--brand); text-decoration: underline; text-underline-offset: 3px; }
+.roster-page .notice + .panel, .roster-archive-form + .panel, .roster-archived + .panel { margin-top: 12px; }
+.roster-archived-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.roster-archived-list li { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--line); }
+.roster-archived-list li:first-child { border-top: 0; padding-top: 0; }
+.roster-archived-list li:last-child { padding-bottom: 0; }
+.roster-archived-list .info { flex: 1; min-width: 120px; }
+.roster-archived-list .info b { display: block; font-size: 13px; }
+.roster-archived-list .info small { display: block; font-size: 12px; color: var(--fg-3); margin-top: 2px; }
+.roster-archived-list .when { font-size: 12px; color: var(--fg-3); white-space: nowrap; }
+@media (max-width: 760px) {
+  .roster-page .page-head .actions .btn { width: auto; flex: 1 1 calc(50% - 4px); }
+  .roster-page .page-head .actions .btn:last-child { flex-basis: 100%; }
+}
+.roster-page .roster-archived, .roster-page .roster-archive-form { margin-bottom: 26px; }
+.roster-page .roster-archive-form + .roster-archived { margin-top: -14px; }

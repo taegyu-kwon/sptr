@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStore } from "../../lib/store";
 import { Cell, Cells, Empty, Medal, Notice, PageHead } from "../../components/ui";
 import { Icon } from "../../components/icons";
@@ -8,13 +9,21 @@ import {
   GAME_TYPE_LABEL, battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, fmtIp, gameTypeOf, gamesInYear, isValidIp,
   pitchingTotalsByPlayer,
 } from "../../lib/stats";
-import type { BattingLine, GameType, PitchingLine } from "../../lib/types";
+import type { BattingLine, GameRecord, GameType, PitchingLine } from "../../lib/types";
 import "../../styles/coach.css";
 import "../../styles/games.css";
 
 /* 입력 중에는 빈 칸을 허용해야 하므로 문자열로 들고 있다가 저장할 때 숫자로 바꾼다 */
-interface BatRow { key: string; playerId: string; ab: string; hits: string; hr: string; rbi: string; sb: string }
-interface PitRow { key: string; playerId: string; ip: string; er: string; so: string; bb: string }
+interface BatRow {
+  key: string; playerId: string; ab: string; hits: string; doubles: string; triples: string; hr: string;
+  rbi: string; runs: string; bb: string; so: string; sb: string;
+}
+interface PitRow { key: string; playerId: string; ip: string; hits: string; er: string; so: string; bb: string }
+
+/** 저장된 숫자 → 입력칸 문자열. 0·없음은 빈 칸(placeholder 0)으로 보여 준다 */
+const strOf = (n: number | undefined) => (n ? String(n) : "");
+/** 경기별 기록 탭에서 처음에 보여 주는 경기 수 */
+const PAGE = 10;
 
 const numOf = (s: string) => (s.trim() === "" ? 0 : Number(s));
 
@@ -39,7 +48,7 @@ function NumField({
 }
 
 export default function GamesPage() {
-  const { db, user, addGame, removeGame } = useStore();
+  const { db, user, addGame, updateGame, removeGame } = useStore();
   const teamId = user!.teamId;
   const games = db.games.filter(g => g.teamId === teamId).sort((a, b) => b.date.localeCompare(a.date));
   const players = db.players.filter(p => p.teamId === teamId);
@@ -65,6 +74,24 @@ export default function GamesPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  /** 수정 중인 경기 id (없으면 새 경기 등록) */
+  const [editId, setEditId] = useState<string | null>(null);
+  /** 월간 일정의 예정 경기에서 "결과 입력"으로 넘어왔을 때 그 예정 경기 id */
+  const [sgId, setSgId] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState("경기 기록이 저장되었습니다.");
+  /** 펼친 경기 카드 — 기본은 모두 접힘(요약 한 줄) */
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showN, setShowN] = useState(PAGE);
+  const formRef = useRef<HTMLDivElement>(null);
+  const toggleExpand = (id: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const scrollToForm = () =>
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
 
   useEffect(() => {
     if (!saved) return;
@@ -81,7 +108,60 @@ export default function GamesPage() {
     setBatRows([]);
     setPitRows([]);
     setErrors([]);
+    setEditId(null);
+    setSgId(null);
   };
+
+  /** 등록 폼에 기존 경기 내용을 채워 수정 상태로 연다 */
+  const startEdit = (g: GameRecord) => {
+    setEditId(g.id);
+    setSgId(null);
+    setDate(g.date);
+    setGameType(gameTypeOf(g));
+    setOpponent(g.opponent);
+    setScoreFor(String(g.scoreFor));
+    setScoreAgainst(String(g.scoreAgainst));
+    setBatRows(g.batting.map(b => ({
+      key: newKey(), playerId: b.playerId, ab: strOf(b.ab), hits: strOf(b.hits), doubles: strOf(b.doubles),
+      triples: strOf(b.triples), hr: strOf(b.hr), rbi: strOf(b.rbi), runs: strOf(b.runs), bb: strOf(b.bb),
+      so: strOf(b.so), sb: strOf(b.sb),
+    })));
+    setPitRows(g.pitching.map(p => ({
+      key: newKey(), playerId: p.playerId, ip: strOf(p.ip), hits: strOf(p.hits), er: strOf(p.er), so: strOf(p.so), bb: strOf(p.bb),
+    })));
+    setErrors([]);
+    setSaved(false);
+    setConfirmId(null);
+    setOpen(true);
+    scrollToForm();
+  };
+
+  /* 월간 일정에서 넘어온 경우: ?sg=예정경기id&date=&opp=&type= → 등록 폼을 채워서 연다. ?edit=기록id → 수정 */
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const edit = params.get("edit");
+    const sg = params.get("sg");
+    if (!edit && !sg) return;
+    if (edit) {
+      const g = db.games.find(x => x.id === edit && x.teamId === teamId);
+      if (g) startEdit(g);
+    } else if (sg) {
+      const linked = db.games.find(x => x.scheduledGameId === sg && x.teamId === teamId);
+      if (linked) startEdit(linked); // 이미 결과가 등록된 예정 경기 → 그 기록을 수정
+      else {
+        resetForm();
+        setSgId(sg);
+        setDate(params.get("date") || today());
+        setGameType(params.get("type") === "연습" ? "연습" : "정식");
+        setOpponent(params.get("opp") ?? "");
+        setSaved(false);
+        setOpen(true);
+        scrollToForm();
+      }
+    }
+    setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params]);
 
   const toggleForm = () => {
     if (open) {
@@ -94,9 +174,11 @@ export default function GamesPage() {
   };
 
   const addBatRow = () =>
-    setBatRows(rows => [...rows, { key: newKey(), playerId: "", ab: "", hits: "", hr: "", rbi: "", sb: "" }]);
+    setBatRows(rows => [...rows, {
+      key: newKey(), playerId: "", ab: "", hits: "", doubles: "", triples: "", hr: "", rbi: "", runs: "", bb: "", so: "", sb: "",
+    }]);
   const addPitRow = () =>
-    setPitRows(rows => [...rows, { key: newKey(), playerId: "", ip: "", er: "", so: "", bb: "" }]);
+    setPitRows(rows => [...rows, { key: newKey(), playerId: "", ip: "", hits: "", er: "", so: "", bb: "" }]);
 
   const patchBat = (key: string, patch: Partial<BatRow>) =>
     setBatRows(rows => rows.map(r => (r.key === key ? { ...r, ...patch } : r)));
@@ -137,7 +219,8 @@ export default function GamesPage() {
       else seenBat.push(r.playerId);
 
       const cells: [string, string][] = [
-        ["타수", r.ab], ["안타", r.hits], ["홈런", r.hr], ["타점", r.rbi], ["도루", r.sb],
+        ["타수", r.ab], ["안타", r.hits], ["2루타", r.doubles], ["3루타", r.triples], ["홈런", r.hr],
+        ["타점", r.rbi], ["득점", r.runs], ["볼넷", r.bb], ["삼진", r.so], ["도루", r.sb],
       ];
       for (const [label, raw] of cells) {
         const v = numOf(raw);
@@ -146,10 +229,12 @@ export default function GamesPage() {
       }
 
       const ab = numOf(r.ab), hits = numOf(r.hits), hr = numOf(r.hr);
+      const d2 = numOf(r.doubles), d3 = numOf(r.triples);
       if (Number.isFinite(ab) && Number.isFinite(hits) && hits > ab)
         errs.push(`${tag}의 안타(${hits})가 타수(${ab})보다 많습니다.`);
-      if (Number.isFinite(hits) && Number.isFinite(hr) && hr > hits)
-        errs.push(`${tag}의 홈런(${hr})이 안타(${hits})보다 많습니다.`);
+      const xbh = d2 + d3 + hr;
+      if (Number.isFinite(hits) && Number.isFinite(xbh) && xbh > hits)
+        errs.push(`${tag}의 2루타+3루타+홈런(${xbh})이 안타(${hits})보다 많습니다.`);
     });
 
     const seenPit: string[] = [];
@@ -162,7 +247,7 @@ export default function GamesPage() {
       const ip = numOf(r.ip);
       if (!isValidIp(ip)) errs.push(`${tag}의 '이닝'은 ⅓ 단위로 입력합니다. 5⅓이닝은 5.1, 5⅔이닝은 5.2로 적습니다.`);
 
-      const cells: [string, string][] = [["자책", r.er], ["탈삼진", r.so], ["볼넷", r.bb]];
+      const cells: [string, string][] = [["피안타", r.hits], ["자책", r.er], ["탈삼진", r.so], ["볼넷", r.bb]];
       for (const [label, raw] of cells) {
         const v = numOf(raw);
         if (!Number.isFinite(v) || v < 0) errs.push(`${tag}의 '${label}' 값은 0 이상 숫자로 입력합니다.`);
@@ -182,13 +267,15 @@ export default function GamesPage() {
     const batting: BattingLine[] = batRows.map(r => ({
       playerId: r.playerId,
       ab: numOf(r.ab), hits: numOf(r.hits), hr: numOf(r.hr), rbi: numOf(r.rbi), sb: numOf(r.sb),
+      doubles: numOf(r.doubles), triples: numOf(r.triples), runs: numOf(r.runs), bb: numOf(r.bb), so: numOf(r.so),
     }));
     const pitching: PitchingLine[] = pitRows.map(r => ({
       playerId: r.playerId,
       ip: Math.round(numOf(r.ip) * 10) / 10, er: numOf(r.er), so: numOf(r.so), bb: numOf(r.bb),
+      hits: numOf(r.hits),
     }));
 
-    addGame(teamId, {
+    const body = {
       date,
       type: gameType,
       opponent: opponent.trim(),
@@ -196,7 +283,15 @@ export default function GamesPage() {
       scoreAgainst: saNum,
       batting,
       pitching,
-    });
+    };
+    if (editId) {
+      updateGame(editId, body);
+      setExpanded(prev => new Set(prev).add(editId));
+      setSavedMsg("경기 기록을 수정했습니다.");
+    } else {
+      addGame(teamId, sgId ? { ...body, scheduledGameId: sgId } : body);
+      setSavedMsg(sgId ? "경기 결과가 저장되었습니다. 월간 일정에도 점수가 표시됩니다." : "경기 기록이 저장되었습니다.");
+    }
 
     resetForm();
     setOpen(false);
@@ -288,15 +383,17 @@ export default function GamesPage() {
 
       {saved && !open && (
         <div className="mt12">
-          <Notice kind="ok">경기 기록이 저장되었습니다.</Notice>
+          <Notice kind="ok">{savedMsg}</Notice>
         </div>
       )}
 
       {open && (
-        <div className="panel">
+        <div className="panel game-form" ref={formRef}>
           <div className="card-head">
-            <h3>경기 등록</h3>
-            <span className="meta">결과는 점수로 자동 판정합니다</span>
+            <h3>{editId ? "경기 수정" : sgId ? "경기 결과 입력" : "경기 등록"}</h3>
+            <span className="meta">
+              {sgId ? "월간 일정의 예정 경기와 연결됩니다 · " : ""}결과는 점수로 자동 판정합니다
+            </span>
           </div>
 
           <form onSubmit={submit}>
@@ -376,8 +473,13 @@ export default function GamesPage() {
                         </div>
                         <NumField id={`bat-${r.key}-ab`} label="타수" value={r.ab} onChange={v => patchBat(r.key, { ab: v })} />
                         <NumField id={`bat-${r.key}-hits`} label="안타" value={r.hits} onChange={v => patchBat(r.key, { hits: v })} />
+                        <NumField id={`bat-${r.key}-doubles`} label="2루타" value={r.doubles} onChange={v => patchBat(r.key, { doubles: v })} />
+                        <NumField id={`bat-${r.key}-triples`} label="3루타" value={r.triples} onChange={v => patchBat(r.key, { triples: v })} />
                         <NumField id={`bat-${r.key}-hr`} label="홈런" value={r.hr} onChange={v => patchBat(r.key, { hr: v })} />
                         <NumField id={`bat-${r.key}-rbi`} label="타점" value={r.rbi} onChange={v => patchBat(r.key, { rbi: v })} />
+                        <NumField id={`bat-${r.key}-runs`} label="득점" value={r.runs} onChange={v => patchBat(r.key, { runs: v })} />
+                        <NumField id={`bat-${r.key}-bb`} label="볼넷" value={r.bb} onChange={v => patchBat(r.key, { bb: v })} />
+                        <NumField id={`bat-${r.key}-so`} label="삼진" value={r.so} onChange={v => patchBat(r.key, { so: v })} />
                         <NumField id={`bat-${r.key}-sb`} label="도루" value={r.sb} onChange={v => patchBat(r.key, { sb: v })} />
                       </div>
                       <button
@@ -421,6 +523,7 @@ export default function GamesPage() {
                           </select>
                         </div>
                         <NumField id={`pit-${r.key}-ip`} label="이닝(.1=⅓)" value={r.ip} step="0.1" onChange={v => patchPit(r.key, { ip: v })} />
+                        <NumField id={`pit-${r.key}-hits`} label="피안타" value={r.hits} onChange={v => patchPit(r.key, { hits: v })} />
                         <NumField id={`pit-${r.key}-er`} label="자책" value={r.er} onChange={v => patchPit(r.key, { er: v })} />
                         <NumField id={`pit-${r.key}-so`} label="탈삼진" value={r.so} onChange={v => patchPit(r.key, { so: v })} />
                         <NumField id={`pit-${r.key}-bb`} label="볼넷" value={r.bb} onChange={v => patchPit(r.key, { bb: v })} />
@@ -456,7 +559,7 @@ export default function GamesPage() {
             )}
 
             <div className="flex gap8 wrap mt16">
-              <button type="submit" className="btn">경기 기록 저장</button>
+              <button type="submit" className="btn">{editId ? "수정 저장" : "경기 기록 저장"}</button>
               <button type="button" className="btn ghost" onClick={toggleForm}>취소</button>
             </div>
           </form>
@@ -473,12 +576,31 @@ export default function GamesPage() {
         games.length === 0 ? (
           <Empty>등록된 경기 기록이 없습니다. 위 '경기 등록'에서 첫 경기를 추가하세요.</Empty>
         ) : (
-          games.map(g => {
+          <>
+          <div className="flex between wrap mt12 game-list-bar">
+            <span className="faint small">
+              전체 {games.length}경기 중 {Math.min(showN, games.length)}경기 · 경기를 누르면 선수별 기록이 펼쳐집니다
+            </span>
+            {games.slice(0, showN).some(g => expanded.has(g.id)) && (
+              <button type="button" className="link-btn" onClick={() => setExpanded(new Set())}>모두 접기</button>
+            )}
+          </div>
+          {games.slice(0, showN).map(g => {
             const lost = g.result === "패";
             const won = g.result === "승";
+            const isOpen = expanded.has(g.id);
             return (
-              <div className="panel" key={g.id}>
+              <div className={`panel game-card${isOpen ? " open" : ""}${editId === g.id ? " editing" : ""}`} key={g.id}>
                 <div className="scoreline">
+                  <button
+                    type="button"
+                    className="game-toggle"
+                    aria-expanded={isOpen}
+                    aria-label={`${fmtDate(g.date)} vs ${g.opponent} 선수별 기록 ${isOpen ? "접기" : "펼치기"}`}
+                    onClick={() => toggleExpand(g.id)}
+                  >
+                    {isOpen ? <Icon.ChevronUp /> : <Icon.ChevronDown />}
+                  </button>
                   <div className="score">
                     <span className={lost ? "lose" : ""}>{g.scoreFor}</span>
                     <span className="sep">:</span>
@@ -503,18 +625,36 @@ export default function GamesPage() {
                         <button type="button" className="btn ghost sm" onClick={() => setConfirmId(null)}>취소</button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        className="icon-btn sm danger"
-                        aria-label="경기 기록 삭제"
-                        onClick={() => setConfirmId(g.id)}
-                      >
-                        <Icon.Trash />
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="icon-btn sm"
+                          aria-label="경기 기록 수정"
+                          title="경기 기록 수정"
+                          onClick={() => startEdit(g)}
+                        >
+                          <Icon.PenLine />
+                        </button>
+                        <button
+                          type="button"
+                          className="icon-btn sm danger"
+                          aria-label="경기 기록 삭제"
+                          title="경기 기록 삭제"
+                          onClick={() => setConfirmId(g.id)}
+                        >
+                          <Icon.Trash />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
 
+                {!isOpen ? (
+                  <button type="button" className="game-summary" onClick={() => toggleExpand(g.id)}>
+                    타격 {g.batting.length}명 · 투구 {g.pitching.length}명 기록 보기
+                  </button>
+                ) : (
+                <>
                 <div className="divider" />
 
                 <div className="columns n2">
@@ -526,7 +666,11 @@ export default function GamesPage() {
                       <div className="tbl-wrap">
                         <table className="tbl compact">
                           <thead>
-                            <tr><th>선수</th><th className="num">타수</th><th className="num">안타</th><th className="num">홈런</th><th className="num">타점</th><th className="num">도루</th></tr>
+                            <tr>
+                              <th>선수</th><th className="num">타수</th><th className="num">안타</th><th className="num">2루타</th>
+                              <th className="num">3루타</th><th className="num">홈런</th><th className="num">타점</th><th className="num">득점</th>
+                              <th className="num">볼넷</th><th className="num">삼진</th><th className="num">도루</th>
+                            </tr>
                           </thead>
                           <tbody>
                             {g.batting.map(b => (
@@ -534,8 +678,13 @@ export default function GamesPage() {
                                 <td className="name">{nameOf(b.playerId)}</td>
                                 <td className="num">{b.ab}</td>
                                 <td className="num">{b.hits}</td>
+                                <td className="num">{b.doubles ?? 0}</td>
+                                <td className="num">{b.triples ?? 0}</td>
                                 <td className="num">{b.hr}</td>
                                 <td className="num">{b.rbi}</td>
+                                <td className="num">{b.runs ?? 0}</td>
+                                <td className="num">{b.bb ?? 0}</td>
+                                <td className="num">{b.so ?? 0}</td>
                                 <td className="num">{b.sb}</td>
                               </tr>
                             ))}
@@ -552,13 +701,14 @@ export default function GamesPage() {
                       <div className="tbl-wrap">
                         <table className="tbl compact">
                           <thead>
-                            <tr><th>선수</th><th className="num">이닝</th><th className="num">자책</th><th className="num">탈삼진</th><th className="num">볼넷</th></tr>
+                            <tr><th>선수</th><th className="num">이닝</th><th className="num">피안타</th><th className="num">자책</th><th className="num">탈삼진</th><th className="num">볼넷</th></tr>
                           </thead>
                           <tbody>
                             {g.pitching.map(p => (
                               <tr key={p.playerId}>
                                 <td className="name">{nameOf(p.playerId)}</td>
                                 <td className="num">{fmtIp(p.ip)}</td>
+                                <td className="num">{p.hits ?? "-"}</td>
                                 <td className="num">{p.er}</td>
                                 <td className="num">{p.so}</td>
                                 <td className="num">{p.bb}</td>
@@ -570,9 +720,20 @@ export default function GamesPage() {
                     )}
                   </div>
                 </div>
+                </>
+                )}
               </div>
             );
-          })
+          })}
+          {games.length > showN && (
+            <div className="game-more">
+              <button type="button" className="btn outline" onClick={() => setShowN(n => n + PAGE)}>
+                더 보기 <span className="faint">({games.length - showN}경기 남음)</span>
+              </button>
+              <button type="button" className="link-btn" onClick={() => setShowN(games.length)}>전체 보기</button>
+            </div>
+          )}
+          </>
         )
       )}
 

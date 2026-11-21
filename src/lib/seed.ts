@@ -3,6 +3,7 @@ import type {
 } from "./types";
 import { groupOf, kindOf } from "./roster";
 import { suggestLineup } from "./lineup";
+import { addDays, fromISO, toISO, todayISO } from "./schedule";
 
 // 시드 고정 난수 — 데모 데이터가 항상 동일하게 생성됨
 let seedVal = 42;
@@ -22,11 +23,13 @@ function makeSnapshots(base: {
 }): Snapshot[] {
   const n = 5; // 최근 5회 측정 (분기별)
   const snaps: Snapshot[] = [];
+  // 마지막 측정이 오늘 기준 9일 전이 되도록 3개월 간격으로 거슬러 올라간다
+  const lastDate = fromISO(addDays(todayISO(), -9));
   for (let i = 0; i < n; i++) {
     const t = i / (n - 1);
     const height = base.height + t * (3 + base.talent * 5);
     const weight = base.weight + t * (3 + base.talent * 6);
-    const date = new Date(2025, 6 + i * 3, 10).toISOString().slice(0, 10);
+    const date = toISO(new Date(lastDate.getFullYear(), lastDate.getMonth() - (n - 1 - i) * 3, Math.min(lastDate.getDate(), 28)));
     snaps.push({
       date,
       body: {
@@ -111,39 +114,40 @@ function makeRng(seed: number) {
 
 const FIELD_SPOTS: PositionDetail[] = ["포수", "1루수", "2루수", "3루수", "유격수", "좌익수", "중견수", "우익수"];
 
-/** 일정: [날짜, 구분, 상대] — 2025년 가을 몇 경기 + 2026년 시즌 */
+/** 일정: [날짜, 구분, 상대] — 2025년 가을 몇 경기 + 2026년 시즌. 오늘 이후 날짜의 경기는 결과를 만들지 않는다 */
 const schedule: [string, GameType, string][] = [
-  ["2025-09-13", "연습", "분당고"],
-  ["2025-09-27", "정식", "수원고"],
+  ["2025-09-13", "연습", "강동고"],
+  ["2025-09-27", "정식", "성동고"],
   ["2025-10-11", "정식", "동성고"],
-  ["2025-10-25", "연습", "성동리틀"],
-  ["2026-03-07", "연습", "분당고"],
-  ["2026-03-14", "연습", "용인고"],
-  ["2026-03-21", "연습", "성동리틀"],
-  ["2026-03-28", "정식", "수원고"],
+  ["2025-10-25", "연습", "잠실고"],
+  ["2026-03-07", "연습", "강동고"],
+  ["2026-03-14", "연습", "노원고"],
+  ["2026-03-21", "연습", "잠실고"],
+  ["2026-03-28", "정식", "성동고"],
   ["2026-04-04", "정식", "한강고"],
-  ["2026-04-11", "연습", "광명고"],
+  ["2026-04-11", "연습", "관악고"],
   ["2026-04-18", "정식", "동성고"],
-  ["2026-04-25", "정식", "안양고"],
-  ["2026-05-09", "연습", "분당고"],
-  ["2026-05-16", "정식", "부천고"],
-  ["2026-05-23", "정식", "의정부고"],
-  ["2026-05-30", "연습", "용인고"],
+  ["2026-04-25", "정식", "마포고"],
+  ["2026-05-09", "연습", "강동고"],
+  ["2026-05-16", "정식", "은평고"],
+  ["2026-05-23", "정식", "중랑고"],
+  ["2026-05-30", "연습", "노원고"],
   ["2026-06-14", "정식", "동성고"],
   ["2026-06-28", "정식", "한강고"],
-  ["2026-07-05", "연습", "성동리틀"],
-  ["2026-07-19", "연습", "분당고"],
-  ["2026-07-26", "정식", "수원고"],
-  ["2026-08-08", "정식", "평택고"],
-  ["2026-08-15", "정식", "안산고"],
-  ["2026-09-05", "연습", "광명고"],
-  ["2026-09-12", "정식", "부천고"],
-  ["2026-09-26", "연습", "용인고"],
-  ["2026-10-10", "정식", "안양고"],
-  ["2026-10-24", "연습", "성동리틀"],
+  ["2026-07-05", "연습", "잠실고"],
+  ["2026-07-19", "연습", "강동고"],
+  ["2026-07-26", "정식", "성동고"],
+  ["2026-08-08", "정식", "서초고"],
+  ["2026-08-15", "정식", "목동고"],
+  ["2026-09-05", "연습", "관악고"],
+  ["2026-09-12", "정식", "은평고"],
+  ["2026-09-26", "연습", "노원고"],
+  ["2026-10-10", "정식", "마포고"],
+  ["2026-10-24", "연습", "잠실고"],
 ];
 
 function buildGames(teamId: string, players: Player[], talentOf: Map<string, number>): GameRecord[] {
+  const today = todayISO();
   const rng = makeRng(2026);
   const t = (id: string) => talentOf.get(id) ?? 0.5;
   const pitchers = players.filter(p => p.position === "투수");
@@ -235,31 +239,36 @@ function buildGames(teamId: string, players: Player[], talentOf: Map<string, num
     const scoreAgainst = pitching.reduce((sum, p) => sum + p.er, 0) + (rng() < 0.3 ? 1 : 0);
     const result: GameRecord["result"] = scoreFor > scoreAgainst ? "승" : scoreFor < scoreAgainst ? "패" : "무";
     return { id: `g${gi + 1}`, teamId, date, type, opponent, scoreFor, scoreAgainst, result, batting, pitching };
-  });
+  }).filter(g => g.date < today);
 }
 
 /* ---------- 특이사항 · 출석 (예시) ---------- */
 
-/** 특이사항 예시: [선수 id, 상태, 시작일] — 시작일부터 훈련은 사유결석 */
-const statusSpec: [string, NonNullable<Player["status"]>, string][] = [
-  ["p8", { kind: "재활", note: "팔꿈치 통증 — 송구 제한, 하체 위주 재활", returnDate: "2026-11-20" }, "2026-10-26"],
-  ["p15", { kind: "부상", note: "왼쪽 발목 염좌", returnDate: "2026-12-05" }, "2026-10-30"],
-  ["p13", { kind: "휴식", note: "성장통 관리로 투구 휴식" }, ""],
-];
+/** 특이사항 예시: [선수 id, 상태, 시작일] — 시작일부터 훈련은 사유결석. 날짜는 오늘 기준 */
+function buildStatusSpec(today: string): [string, NonNullable<Player["status"]>, string][] {
+  return [
+    ["p8", { kind: "재활", note: "팔꿈치 통증 — 송구 제한, 하체 위주 재활", returnDate: addDays(today, 9) }, addDays(today, -26)],
+    ["p15", { kind: "부상", note: "왼쪽 발목 염좌", returnDate: addDays(today, 20) }, addDays(today, -15)],
+    ["p13", { kind: "휴식", note: "성장통 관리로 투구 휴식" }, ""],
+  ];
+}
 
-/** 2026-10-05 ~ 11-04 훈련일(월·수·금 + 격주 토) 출석. 고정 난수라 항상 같다 */
-function buildAttendance(teamId: string, players: Player[]): AttendanceRecord[] {
+/**
+ * 최근 30일 훈련일(월~토, 훈련 공지 예시와 같은 요일) 출석 — 어제까지는 전원 기록.
+ * 오늘(일요일 제외)은 일부 선수만 체크한 상태로 둔다. 시연용 선수 계정(demoPlayerId)은 직접 체크해 볼 수 있게 비워 둔다.
+ */
+function buildAttendance(
+  teamId: string, players: Player[], statusSpec: ReturnType<typeof buildStatusSpec>, today: string, demoPlayerId: string,
+): AttendanceRecord[] {
   const rng = makeRng(1105);
-  const pad = (n: number) => String(n).padStart(2, "0");
   const days: string[] = [];
-  let saturdays = 0;
-  for (let d = new Date(2026, 9, 5); d <= new Date(2026, 10, 4); d.setDate(d.getDate() + 1)) {
-    const dow = d.getDay();
-    if (dow === 1 || dow === 3 || dow === 5 || (dow === 6 && saturdays++ % 2 === 0))
-      days.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  for (let i = 30; i >= 1; i--) {
+    const date = addDays(today, -i);
+    if (fromISO(date).getDay() !== 0) days.push(date);
   }
   const out: AttendanceRecord[] = [];
   for (const date of days) {
+    const saturday = fromISO(date).getDay() === 6;
     for (const p of players) {
       const st = statusSpec.find(([id, s, from]) => id === p.id && from && s.kind !== "휴식" && date >= from);
       let status: AttendanceStatus = "출석";
@@ -273,12 +282,30 @@ function buildAttendance(teamId: string, players: Player[]): AttendanceRecord[] 
         else if (r < 0.075) status = "결석";
         else if (r < 0.1) { status = "사유결석"; note = rng() < 0.5 ? "병원 진료" : "학교 행사"; }
       }
-      // 선수가 훈련 전후(15:40~16:10)에 직접 체크한 것으로 둔다. 지각은 그보다 늦게
+      // 선수가 훈련 시작(평일 16:00, 토요일 10:00) 전후에 직접 체크한 것으로 둔다. 지각은 그보다 늦게
       const min = status === "지각" ? 20 + Math.floor(rng() * 25) : Math.floor(rng() * 31) - 20;
-      const t = new Date(`${date}T16:00:00`);
+      const t = new Date(`${date}T${saturday ? "10" : "16"}:00:00`);
       t.setMinutes(t.getMinutes() + min);
       out.push({
         id: `at-${date}-${p.id}`, teamId, playerId: p.id, date, status, ...(note ? { note } : {}),
+        checkedAt: t.toISOString(), source: "선수",
+      });
+    }
+  }
+  // 오늘: 절반쯤만 체크. 체크 시각은 지금보다 앞(최근 2시간 안)이어야 자연스럽다
+  if (fromISO(today).getDay() !== 0) {
+    const now = new Date();
+    const dayStart = new Date(`${today}T00:01:00`).getTime();
+    for (const p of players) {
+      if (p.id === demoPlayerId) continue;
+      const st = statusSpec.find(([id, s, from]) => id === p.id && from && s.kind !== "휴식");
+      const r = rng();
+      const ago = 4 + Math.floor(rng() * 110);
+      if (!st && r >= 0.6) continue;
+      const t = new Date(Math.max(dayStart, now.getTime() - ago * 60000));
+      out.push({
+        id: `at-${today}-${p.id}`, teamId, playerId: p.id, date: today,
+        status: st ? "사유결석" : "출석", ...(st ? { note: st[1].kind } : {}),
         checkedAt: t.toISOString(), source: "선수",
       });
     }
@@ -288,7 +315,8 @@ function buildAttendance(teamId: string, players: Player[]): AttendanceRecord[] 
 
 export function buildSeed(): DB {
   seedVal = 42;
-  const teamId = "t-seongnam";
+  const today = todayISO();
+  const teamId = "t-seongnam"; // 예전 예시 팀 때 만든 id. 저장 데이터·라인업이 참조하므로 그대로 둔다
   const teams = [{ id: teamId, name: "배명고등학교 야구부", region: "서울 송파" }];
 
   const players: Player[] = rosterSpec.map((spec, i) => {
@@ -312,6 +340,7 @@ export function buildSeed(): DB {
       grade: spec.grade,
       records,
       sbiMetrics: {
+        date: addDays(today, -(4 + (4 - spec.grade) * 3)), // 학년별로 다른 날 측정(3학년 7일 전 · 2학년 10일 전 · 1학년 13일 전)
         sprint: Math.round((1.72 - t * 0.22) * 100) / 100,
         vertical: Math.round(42 + t * 22),
         squatReps: Math.round(28 + t * 24),
@@ -333,11 +362,11 @@ export function buildSeed(): DB {
   ];
 
   const feedbacks = [
-    { id: "f1", teamId, playerId: "p1", author: "박정후 감독", date: "2026-07-05", category: "투구", content: "릴리스 포인트가 안정되면서 구속이 올라오고 있다. 다만 경기 후반 밸런스가 무너지는 경향이 있으니 하체 지구력 훈련을 병행할 것." },
-    { id: "f2", teamId, playerId: "p1", author: "이코치", date: "2026-06-20", category: "컨디셔닝", content: "급성장기라 햄스트링 유연성이 떨어져 있음. 매 훈련 전후 스트레칭 루틴 필수." },
-    { id: "f3", teamId, playerId: "p6", author: "박정후 감독", date: "2026-07-02", category: "타격", content: "히팅 포인트를 앞에 두는 연습이 효과를 보고 있다. 변화구 대응 훈련 추가." },
-    { id: "f4", teamId, playerId: null, author: "박정후 감독", date: "2026-07-08", category: "팀 전체", content: "하계 대회 대비 기간입니다. 수비 조직력(중계 플레이, 커버링)을 집중 점검합니다. 전원 훈련 30분 전 도착해서 개인 스트레칭 완료할 것." },
-    { id: "f5", teamId, playerId: null, author: "이코치", date: "2026-06-25", category: "팀 전체", content: "최근 측정에서 팀 평균 코어 지표가 향상됐습니다. 다음 블록은 스피드 훈련 비중을 높입니다." },
+    { id: "f1", teamId, playerId: "p1", author: "박정후 감독", date: addDays(today, -3), category: "투구", content: "릴리스 포인트가 안정되면서 구속이 올라오고 있다. 다만 경기 후반 밸런스가 무너지는 경향이 있으니 하체 지구력 훈련을 병행할 것." },
+    { id: "f2", teamId, playerId: "p1", author: "이코치", date: addDays(today, -12), category: "컨디셔닝", content: "급성장기라 햄스트링 유연성이 떨어져 있음. 매 훈련 전후 스트레칭 루틴 필수." },
+    { id: "f3", teamId, playerId: "p6", author: "박정후 감독", date: addDays(today, -6), category: "타격", content: "히팅 포인트를 앞에 두는 연습이 효과를 보고 있다. 변화구 대응 훈련 추가." },
+    { id: "f4", teamId, playerId: null, author: "박정후 감독", date: addDays(today, -1), category: "팀 전체", content: "대회 대비 기간입니다. 수비 조직력(중계 플레이, 커버링)을 집중 점검합니다. 전원 훈련 30분 전 도착해서 개인 스트레칭 완료할 것." },
+    { id: "f5", teamId, playerId: null, author: "이코치", date: addDays(today, -10), category: "팀 전체", content: "최근 측정에서 팀 평균 코어 지표가 향상됐습니다. 다음 블록은 스피드 훈련 비중을 높입니다." },
   ];
 
   const training = [
@@ -354,10 +383,11 @@ export function buildSeed(): DB {
   const talentOf = new Map(players.map((p, i) => [p.id, rosterSpec[i].talent]));
   const games = buildGames(teamId, players, talentOf);
 
+  // 예전 형식 일정(출석 화면의 "그날 일정"에 함께 보인다). 경기는 월간 일정(schedule.ts) 쪽에 있다
   const events = [
-    { id: "e1", teamId, date: "2026-07-15", type: "훈련" as const, title: "하계 대회 대비 특별 훈련", place: "배명고 야구장" },
-    { id: "e2", teamId, date: "2026-07-19", type: "시합" as const, title: "연습경기 vs 분당고", place: "분당 구장" },
-    { id: "e3", teamId, date: "2026-07-26", type: "시합" as const, title: "하계리그 1차전 vs 수원고", place: "수원 야구장" },
+    { id: "e1", teamId, date: addDays(today, 3), type: "훈련" as const, title: "대회 대비 수비 특별 훈련", place: "배명고 야구장" },
+    { id: "e2", teamId, date: addDays(today, 10), type: "훈련" as const, title: "체력 측정의 날", place: "배명고 체육관" },
+    { id: "e3", teamId, date: addDays(today, 17), type: "훈련" as const, title: "학부모 참관 훈련", place: "배명고 야구장" },
   ];
 
   const codes = [
@@ -377,19 +407,20 @@ export function buildSeed(): DB {
     {
       id: "lu-default", teamId, gameId: null, ...base,
       memo: "정식 경기 기본 라인업입니다. 상대 선발 유형에 따라 경기별로 일부 바꿀 수 있습니다.",
-      published: true, updatedAt: "2026-11-01T20:00:00", author: "박정후 감독",
+      published: true, updatedAt: `${addDays(today, -6)}T20:00:00`, author: "박정후 감독",
     },
     {
       id: "lu-sg-t1b", teamId, gameId: "sg-t1b", ...base, pitcherId: secondSp?.id ?? base.pitcherId,
       memo: "1회전 선발은 투구수 관리로 이틀 휴식합니다. 2회전 선발은 " + (secondSp?.name ?? "") + ", 타순은 기본과 같습니다.",
-      published: true, updatedAt: "2026-11-02T20:00:00", author: "박정후 감독",
+      published: true, updatedAt: `${addDays(today, -2)}T20:00:00`, author: "박정후 감독",
     },
   ];
+  const statusSpec = buildStatusSpec(today);
   for (const [id, status] of statusSpec) {
     const p = players.find(x => x.id === id);
     if (p) p.status = status;
   }
-  const attendance = buildAttendance(teamId, players);
+  const attendance = buildAttendance(teamId, players, statusSpec, today, starPlayer.id);
 
   return { users, teams, players, feedbacks, training, games, lineups, events, codes, attendance };
 }

@@ -11,6 +11,7 @@ const navigation: Record<string, NavGroup[]> = {
     { label: "WORKSPACE", items: [
       { to: "/c/overview", label: "팀 대시보드", icon: Icon.Gauge },
       { to: "/c/players", label: "선수단", icon: Icon.Users },
+      { to: "/c/team", label: "팀 관리", icon: Icon.Shield },
     ] },
     { label: "PERFORMANCE", items: [
       { to: "/c/sbi", label: "SBI / SMI 분석", icon: Icon.TrendingUp },
@@ -30,7 +31,7 @@ const navigation: Record<string, NavGroup[]> = {
     { label: "MY PERFORMANCE", items: [
       { to: "/p/stats", label: "내 능력치", icon: Icon.Gauge },
       { to: "/p/growth", label: "성장 그래프", icon: Icon.TrendingUp },
-      { to: "/p/input", label: "데이터 입력", icon: Icon.PenLine },
+      { to: "/p/input", label: "측정 기록", icon: Icon.PenLine },
       { to: "/sbi", label: "SBI / SMI 분석", icon: Icon.Calculator },
       { to: "/p/ranking", label: "팀 내 순위", icon: Icon.Trophy },
       { to: "/p/centers", label: "측정 센터 지도", icon: Icon.MapPin },
@@ -77,14 +78,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       const Ic = item.icon;
       return <NavLink key={item.to} to={item.to} onClick={() => mobile && drawer.current?.close()}><Ic /><span>{item.label}</span>{item.to === "/c/players" && <small>{db.players.filter(p => p.teamId === user.teamId).length}</small>}</NavLink>;
     })}</div>)}</nav>
-    <div className="sidebar-bottom"><div className="sidebar-note"><span className="eyebrow">ONE TEAM. NEXT LEVEL.</span><p>기록이 모여<br />우리 팀의 내일이 됩니다.</p><span className="sidebar-line" /></div><div className="sidebar-account"><Avatar name={user.name} /><div><b>{user.name}</b><span>{user.role === "coach" ? "코칭스태프" : "선수 / 학부모"}</span></div><button className="icon-btn" aria-label="로그아웃" title="로그아웃" onClick={doLogout}><Icon.LogOut /></button></div></div>
+    <div className="sidebar-bottom"><div className="sidebar-note"><span className="eyebrow">ONE TEAM. NEXT LEVEL.</span><p>기록이 모여<br />우리 팀의 내일이 됩니다.</p><span className="sidebar-line" /></div><div className="sidebar-account"><Link to="/account" className="sidebar-account-link" title="내 계정" onClick={() => mobile && drawer.current?.close()}><Avatar name={user.name} /><div><b>{user.name}</b><span>{user.role === "coach" ? "코칭스태프" : user.relation === "parent" ? `${db.players.find(p => p.id === user.playerId)?.name ?? ""} 선수 학부모` : "선수"}</span></div></Link><button className="icon-btn" aria-label="로그아웃" title="로그아웃" onClick={doLogout}><Icon.LogOut /></button></div></div>
   </>;
   return <div className="app clubhouse">
     <a className="skip-link" href="#main-content" onClick={e => { e.preventDefault(); document.getElementById("main-content")?.focus(); }}>본문으로 건너뛰기</a>
     <aside className="workspace-sidebar">{sidebar()}</aside>
     <dialog ref={drawer} className="mobile-drawer" aria-label="전체 메뉴" onClose={() => { setMenuOpen(false); menuButton.current?.focus(); }} onClick={e => { if (e.target === drawer.current) drawer.current.close(); }}><div className="mobile-drawer-inner">{sidebar(true)}</div></dialog>
     <div className="workspace-content">
-      <header className="workspace-topbar"><div className="workspace-breadcrumb"><button ref={menuButton} className="icon-btn mobile-menu" aria-label="전체 메뉴 열기" aria-expanded={menuOpen} onClick={() => { drawer.current?.showModal(); setMenuOpen(true); }}><Icon.Menu /></button><span>워크스페이스</span><Icon.ChevronRight /><b>{current?.label ?? "팀 관리"}</b></div><div className="workspace-top-actions"><span className="workspace-date">{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span><Link to={calendar} className="top-calendar"><Icon.Calendar /><span>일정 보기</span></Link></div></header>
+      <header className="workspace-topbar"><div className="workspace-breadcrumb"><button ref={menuButton} className="icon-btn mobile-menu" aria-label="전체 메뉴 열기" aria-expanded={menuOpen} onClick={() => { drawer.current?.showModal(); setMenuOpen(true); }}><Icon.Menu /></button><span>워크스페이스</span><Icon.ChevronRight /><b>{current?.label ?? (location.pathname === "/account" ? "내 계정" : "팀 관리")}</b></div><div className="workspace-top-actions"><span className="workspace-date">{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span><Link to={calendar} className="top-calendar"><Icon.Calendar /><span>일정 보기</span></Link></div></header>
       <main className="main" id="main-content" tabIndex={-1}>{children}</main>
       <footer className="app-footer"><span>SPTR CLUBHOUSE</span><span>EVERY PLAYER. EVERY POSSIBILITY.</span></footer>
     </div>

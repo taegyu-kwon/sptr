@@ -28,9 +28,19 @@ export default function CoachSbiListPage() {
       if (sortKey === "name") return a.p.name.localeCompare(b.p.name, "ko");
       const av = a.idx ? a.idx[sortKey] : -1;
       const bv = b.idx ? b.idx[sortKey] : -1;
-      return bv - av;
+      return bv - av || a.p.name.localeCompare(b.p.name, "ko");
     });
   }, [db.players, user?.teamId, sortKey]);
+
+  /**
+   * 순위는 측정한 선수끼리 매긴다 — 정렬 기준 점수(이름 순일 때는 최종 R), 동점은 같은 순위.
+   * 미측정 선수는 순위가 없다.
+   */
+  const rankKey = sortKey === "name" ? "finalR" : sortKey;
+  const rankOf = useMemo(() => {
+    const scores = rows.filter(x => x.idx).map(x => x.idx![rankKey]);
+    return (v: number) => scores.filter(x => x > v).length + 1;
+  }, [rows, rankKey]);
 
   const measured = rows.filter(x => x.idx !== null);
   const unmeasured = rows.length - measured.length;
@@ -46,7 +56,7 @@ export default function CoachSbiListPage() {
     <>
       <PageHead
         title="SBI / SMI 리스트"
-        desc={<>팀 선수별 SBI·SMI·최종 R입니다. <b>선수 이름을 클릭</b>하면 구성 종목 그래프와 세부 점수를 볼 수 있습니다.</>}
+        desc={<>팀 선수별 SBI·SMI·최종 R입니다. <b>선수 이름을 클릭</b>하면 구성 종목과 측정 이력을 보고 측정값을 입력할 수 있습니다. 순위는 측정한 선수끼리만 매깁니다.</>}
       />
 
       <div className="toolbar">
@@ -85,9 +95,9 @@ export default function CoachSbiListPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ p, idx }, i) => (
+                {rows.map(({ p, idx }) => (
                   <tr key={p.id}>
-                    <td><Medal rank={i + 1} /></td>
+                    <td>{idx ? <Medal rank={rankOf(idx[rankKey])} /> : <span className="dim" title="미측정 선수는 순위가 없습니다">-</span>}</td>
                     <td>
                       <div className="who">
                         <Avatar name={p.name} size="sm" />

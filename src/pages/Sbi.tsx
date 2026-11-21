@@ -1,6 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "../styles/sbi.css";
+import "../styles/measure.css";
 import { useStore } from "../lib/store";
+import type { Player, SbiMetrics } from "../lib/types";
+import PlayerSbiCard from "../components/PlayerSbiCard";
+import { SbiHistoryTable, SbiRawData, sbiHistoryOf } from "../components/SbiHistory";
 import { latest } from "../lib/gpe";
 import { todayISO } from "../lib/schedule";
 import { fmtDate, r1 } from "../lib/format";
@@ -10,7 +14,7 @@ import {
   strengthAvg, sbiRawOf, brakePctOf, accelPctOf, smiOf, finalROf,
   normVertOf, normVeloOf, normSprintOf,
 } from "../lib/sbi";
-import { ScoreBar, ScoreRing, PageHead, Section, Notice } from "../components/ui";
+import { ScoreBar, ScoreRing, PageHead, Section, Notice, Empty } from "../components/ui";
 
 const AXES = ["스쿼트", "데드리프트", "푸쉬업", "버티컬", "최고 구속", "스프린트"];
 
@@ -82,30 +86,42 @@ const parse = (s: string): number | null => {
   return Number.isFinite(v) ? v : null;
 };
 
-export default function SbiPage() {
-  const { db, user, saveSbiMetrics } = useStore();
-  const me = user?.playerId ? db.players.find(p => p.id === user.playerId) : null;
+/**
+ * SBI/SMI 계산기 폼.
+ * - onSave가 있으면(감독·코치의 SBI 상세) 측정일과 함께 측정값 9개를 저장한다. 신장·체중·구속은 선수의 최근 측정 기록 값으로 고정.
+ * - onSave가 없으면(선수 화면 "가상 입력해 보기") 계산만 하고 아무것도 저장하지 않는다.
+ */
+export function SbiCalculator({
+  player, onSave, onCancel,
+}: {
+  player?: Player | null;
+  onSave?: (metrics: SbiMetrics) => void;
+  onCancel?: () => void;
+}) {
+  const me = player ?? null;
   const snap = me ? latest(me) : null;
-  /** 이미 저장된 측정 기록 — 있으면 계산기 입력의 초기값이 된다 */
+  /** 이미 저장된 최근 측정 — 있으면 입력의 초기값이 된다 */
   const savedMetrics = me?.sbiMetrics;
-  /** 저장은 선수 계정에서만 가능하다 */
-  const canSave = Boolean(user?.playerId && me);
+  const canSave = Boolean(onSave && me);
+  /** 저장용 폼에서 측정 이력이 없으면 예시 값 대신 빈 칸으로 시작한다 */
+  const blank = canSave && !savedMetrics;
+  const [date, setDate] = useState(todayISO());
 
   const [grade, setGrade] = useState(me ? String(Math.min(3, Math.max(1, me.grade))) : "3");
   const [height, setHeight] = useState(snap ? String(snap.body.height) : "175");
   const [weight, setWeight] = useState(snap ? String(snap.body.weight) : "65");
   const [velo, setVelo] = useState(snap ? String(snap.practical.maxVelo) : "132");
-  const [sprint, setSprint] = useState(savedMetrics ? String(savedMetrics.sprint) : "1.55");
-  const [vertical, setVertical] = useState(savedMetrics ? String(savedMetrics.vertical) : "58");
-  const [squat, setSquat] = useState(savedMetrics ? String(savedMetrics.squatReps) : "50");
-  const [dead, setDead] = useState(savedMetrics ? String(savedMetrics.deadReps) : "13");
-  const [push, setPush] = useState(savedMetrics ? String(savedMetrics.pushReps) : "16");
+  const [sprint, setSprint] = useState(savedMetrics ? String(savedMetrics.sprint) : blank ? "" : "1.55");
+  const [vertical, setVertical] = useState(savedMetrics ? String(savedMetrics.vertical) : blank ? "" : "58");
+  const [squat, setSquat] = useState(savedMetrics ? String(savedMetrics.squatReps) : blank ? "" : "50");
+  const [dead, setDead] = useState(savedMetrics ? String(savedMetrics.deadReps) : blank ? "" : "13");
+  const [push, setPush] = useState(savedMetrics ? String(savedMetrics.pushReps) : blank ? "" : "16");
 
   // SMI 입력 (Method 2)
-  const [landDist, setLandDist] = useState(savedMetrics ? String(savedMetrics.landDist) : "480"); // 착지거리 cm
-  const [upperOnly, setUpperOnly] = useState(savedMetrics ? String(savedMetrics.upperOnly) : "8.5"); // 하체고정 상체만 (m)
-  const [fullBody, setFullBody] = useState(savedMetrics ? String(savedMetrics.fullBody) : "11"); // 전신 투구폼 (m)
-  const [elbowThrow, setElbowThrow] = useState(savedMetrics ? String(savedMetrics.elbowThrow) : "7.2"); // 무릎 꿇고 메디신볼 (m)
+  const [landDist, setLandDist] = useState(savedMetrics ? String(savedMetrics.landDist) : blank ? "" : "480"); // 착지거리 cm
+  const [upperOnly, setUpperOnly] = useState(savedMetrics ? String(savedMetrics.upperOnly) : blank ? "" : "8.5"); // 하체고정 상체만 (m)
+  const [fullBody, setFullBody] = useState(savedMetrics ? String(savedMetrics.fullBody) : blank ? "" : "11"); // 전신 투구폼 (m)
+  const [elbowThrow, setElbowThrow] = useState(savedMetrics ? String(savedMetrics.elbowThrow) : blank ? "" : "7.2"); // 무릎 꿇고 메디신볼 (m)
   const [detail, setDetail] = useState<"sbi" | "smi" | null>(null);
   const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -178,21 +194,6 @@ export default function SbiPage() {
     { key: "smi" as const, label: "SMI", value: result.smi },
   ];
 
-  /**
-   * 코치 화면(evaluatePlayerSbi)은 신장·최고 구속을 선수의 최근 측정 기록에서 읽는다.
-   * 계산기에 입력한 값이 그 기록과 다르면 저장 뒤 점수가 달라지므로 두 값을 함께 보여준다.
-   */
-  const bodyMismatch = useMemo(() => {
-    if (!canSave || !snap) return null;
-    const h = parse(height);
-    const v = parse(velo);
-    if (h === null || v === null) return null;
-    const recH = snap.body.height;
-    const recV = snap.practical.maxVelo;
-    if (Math.abs(h - recH) < 0.05 && Math.abs(v - recV) < 0.5) return null;
-    return { h, v, recH, recV };
-  }, [canSave, snap, height, velo]);
-
   /** 저장 대상 9개 항목 — 라벨은 검증 메시지에 그대로 쓴다 */
   const metricFields: { label: string; raw: string }[] = [
     { label: "10m 스프린트", raw: sprint },
@@ -207,7 +208,9 @@ export default function SbiPage() {
   ];
 
   const handleSave = () => {
-    if (!user?.playerId) return;
+    if (!onSave) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return setSaveMsg({ kind: "error", text: "측정일을 선택하세요." });
+    if (date > todayISO()) return setSaveMsg({ kind: "error", text: "측정일은 오늘 이후로 지정할 수 없습니다." });
     const invalid = metricFields.filter(f => {
       const v = parse(f.raw);
       return v === null || v <= 0;
@@ -219,8 +222,8 @@ export default function SbiPage() {
       });
       return;
     }
-    saveSbiMetrics(user.playerId, {
-      date: todayISO(),
+    onSave({
+      date,
       sprint: parse(sprint)!,
       vertical: parse(vertical)!,
       squatReps: parse(squat)!,
@@ -231,25 +234,11 @@ export default function SbiPage() {
       fullBody: parse(fullBody)!,
       elbowThrow: parse(elbowThrow)!,
     });
-    setSaveMsg({ kind: "ok", text: "측정 기록이 저장되었습니다. 코치 화면 SBI/SMI 리스트에 반영됩니다." });
+    setSaveMsg(null);
   };
 
-  return (
+  const preview = (
     <>
-      <PageHead
-        title="SBI / SMI 계산기"
-        desc="U15 중학교 기준 — SBI(버퍼 인덱스)와 SMI(역학 인덱스, 팔꿈치 폄 속도 Method 2)를 함께 산출합니다. 최종 점수 R = SBI/2 + SMI/2"
-        actions={
-          canSave ? (
-            <button type="button" className="btn" onClick={handleSave}>
-              {savedMetrics ? "측정 기록 덮어쓰기" : "측정 기록 저장"}
-            </button>
-          ) : user ? (
-            <span className="faint small">코치 계정에서는 계산만 가능합니다.</span>
-          ) : undefined
-        }
-      />
-
       {/* ---------- 결과 히어로 — 주인공은 최종 R 링 ---------- */}
       <div className="panel hero">
         <div className="flex gap24 wrap start sbi-hero-row">
@@ -257,6 +246,7 @@ export default function SbiPage() {
             <div>
               <div className="eyebrow">최종 R</div>
               <div className="display md faint">–</div>
+              <div className="faint xs mt4">측정값을 모두 입력하면 계산됩니다</div>
             </div>
           ) : (
             <ScoreRing value={result.finalR} size={148} stroke={11} label="최종 R" display={r1(result.finalR)} />
@@ -285,26 +275,11 @@ export default function SbiPage() {
               U15 기준 · C = {C_U15} · 팔꿈치 폄 Method 2
             </div>
             <div className="faint xs mono mt4">R = SBI/2 + SMI/2</div>
-            {canSave && savedMetrics && (
-              <div className="faint xs mt4">
-                {savedMetrics.date ? `최근 저장 ${fmtDate(savedMetrics.date)}` : "저장된 기록 있음"}
-              </div>
-            )}
+            <div className="faint xs mt4">
+              {canSave ? "아래 입력값 기준 미리보기 — 저장 전에는 기록에 반영되지 않습니다" : "입력값 기준 계산 결과 — 저장되지 않습니다"}
+            </div>
           </div>
         </div>
-
-        {saveMsg && (
-          <Notice kind={saveMsg.kind} className="mt16">
-            {saveMsg.text}
-          </Notice>
-        )}
-
-        {bodyMismatch && (
-          <Notice kind="warn" className="mt16">
-            계산기의 신장/구속({r1(bodyMismatch.h)}cm · {r1(bodyMismatch.v)}km/h)이 최근 측정 기록(
-            {r1(bodyMismatch.recH)}cm · {r1(bodyMismatch.recV)}km/h)과 다릅니다. 저장된 점수는 측정 기록 기준으로 계산됩니다.
-          </Notice>
-        )}
 
         {result.warn && (
           <Notice kind="warn" className="mt16">
@@ -312,12 +287,6 @@ export default function SbiPage() {
           </Notice>
         )}
 
-        {canSave && (
-          <div className="faint xs mt12">
-            저장된 기록으로 코치 화면에서 다시 계산할 때는 신장과 최고 구속을 선수의 최근 측정 기록 값으로 씁니다. 저장 대상은 아래 9개
-            측정값이며, 신장·체중·구속은 저장되지 않습니다.
-          </div>
-        )}
       </div>
 
       {/* ---------- 구성 종목 / 종목 프로필 ---------- */}
@@ -377,9 +346,30 @@ export default function SbiPage() {
         </div>
       )}
 
+    </>
+  );
+
+  const inputSection = (
+    <>
       {/* ---------- 측정 입력 ---------- */}
-      <Section title="측정 입력" meta="입력하는 즉시 계산됩니다">
+      <Section
+        title={canSave ? "SBI/SMI 측정값 입력" : "측정 입력"}
+        meta={canSave ? "저장하면 측정 이력에 쌓입니다" : "입력하는 즉시 계산됩니다"}
+      >
         <div className="panel">
+          {canSave && (
+            <div className="measure-date">
+              <div className="field">
+                <label htmlFor="sbi-date">측정일</label>
+                <input id="sbi-date" type="date" value={date} max={todayISO()} onChange={e => setDate(e.target.value)} />
+              </div>
+              <span className="small faint">
+                {savedMetrics
+                  ? `직전 측정${savedMetrics.date ? `(${fmtDate(savedMetrics.date)})` : ""} 값이 채워져 있습니다. 같은 측정일로 저장하면 그날 기록을 바꿉니다.`
+                  : "첫 SBI/SMI 측정입니다. 측정값 9개를 모두 입력하세요."}
+              </span>
+            </div>
+          )}
           <div className="columns n3">
             <div className="col">
               <div className="col-head">
@@ -396,16 +386,23 @@ export default function SbiPage() {
                 </div>
                 <div className="field">
                   <label>신장 (cm)</label>
-                  <input type="number" step={0.1} value={height} onChange={e => setHeight(e.target.value)} />
+                  <input type="number" step={0.1} value={height} onChange={e => setHeight(e.target.value)} disabled={canSave} />
                 </div>
                 <div className="field">
                   <label>체중 (kg)</label>
-                  <input type="number" step={0.1} value={weight} onChange={e => setWeight(e.target.value)} />
+                  <input type="number" step={0.1} value={weight} onChange={e => setWeight(e.target.value)} disabled={canSave} />
                 </div>
                 <div className="field">
                   <label>최고 구속 (km/h)</label>
-                  <input type="number" step={1} value={velo} onChange={e => setVelo(e.target.value)} />
+                  <input type="number" step={1} value={velo} onChange={e => setVelo(e.target.value)} disabled={canSave} />
                 </div>
+                {canSave && snap && (
+                  <div className="field span-all">
+                    <span className="help">
+                      신장·체중·구속은 최근 측정 기록({fmtDate(snap.date)}) 값을 씁니다. 바꾸려면 선수 상세의 측정 기록에서 수정하세요.
+                    </span>
+                  </div>
+                )}
                 <div className="field">
                   <label>10m 스프린트 (초)</label>
                   <input type="number" step={0.01} value={sprint} onChange={e => setSprint(e.target.value)} />
@@ -474,9 +471,24 @@ export default function SbiPage() {
               </div>
             </div>
           </div>
+          {canSave && (
+            <>
+              {saveMsg && <Notice kind={saveMsg.kind} className="mt16">{saveMsg.text}</Notice>}
+              <div className="sbi-save-row">
+                <button type="button" className="btn" onClick={handleSave}>측정값 저장</button>
+                {onCancel && <button type="button" className="btn ghost" onClick={onCancel}>취소</button>}
+                <span className="small faint">저장 대상은 측정값 9개와 측정일입니다. 저장하면 선수 화면과 SBI/SMI 리스트에 바로 반영됩니다.</span>
+              </div>
+            </>
+          )}
         </div>
       </Section>
 
+    </>
+  );
+
+  const scoreSection = (
+    <>
       {/* ---------- 세부 점수 ---------- */}
       <Section title="세부 점수">
         <div className="split even">
@@ -575,6 +587,65 @@ export default function SbiPage() {
           </div>
         </div>
       </Section>
+    </>
+  );
+
+  // 저장용(코치)은 입력이 먼저, 가상 계산은 결과가 먼저
+  return canSave ? <>{inputSection}{preview}{scoreSection}</> : <>{preview}{inputSection}{scoreSection}</>;
+}
+
+/** 선수 화면 /sbi — 감독·코치가 저장한 측정 결과와 이력을 보기만 한다. 가상 계산은 저장되지 않는다 */
+export default function SbiPage() {
+  const { db, user } = useStore();
+  const me = user?.playerId ? db.players.find(p => p.id === user.playerId) ?? null : null;
+  const [tryOpen, setTryOpen] = useState(false);
+  const history = me ? sbiHistoryOf(me) : [];
+
+  return (
+    <>
+      <PageHead
+        title="SBI / SMI 분석"
+        desc="U15 기준 — SBI(버퍼 인덱스)와 SMI(역학 인덱스, 팔꿈치 폄 속도 Method 2)를 함께 봅니다. 최종 점수 R = SBI/2 + SMI/2"
+      />
+
+      <Notice kind="info">
+        SBI/SMI 측정값은 감독·코치가 입력합니다. 선수 화면에서는 결과와 이력을 보기만 할 수 있습니다.
+      </Notice>
+
+      {me && (
+        <>
+          <div className="mt16">
+            <PlayerSbiCard player={me} />
+          </div>
+
+          <Section title="지난 측정 이력" meta={history.length ? `총 ${history.length}회` : undefined}>
+            <div className="panel">
+              {history.length ? <SbiHistoryTable player={me} /> : <Empty>아직 저장된 SBI/SMI 측정이 없습니다. 코칭스태프가 측정값을 입력하면 여기에 표시됩니다.</Empty>}
+            </div>
+          </Section>
+
+          {me.sbiMetrics && <SbiRawData player={me} m={me.sbiMetrics} />}
+        </>
+      )}
+
+      <Section
+        title="가상 입력해 보기"
+        meta="값을 바꿔 점수 변화를 미리 봅니다 · 저장되지 않습니다"
+        actions={
+          <button type="button" className="btn outline sm" aria-expanded={tryOpen} onClick={() => setTryOpen(o => !o)}>
+            {tryOpen ? "계산기 닫기" : "계산기 열기"}
+          </button>
+        }
+      >
+        {!tryOpen && (
+          <div className="panel sub">
+            <span className="small faint">
+              목표 기록을 넣어 보면 SBI·SMI·최종 R이 어떻게 달라지는지 확인할 수 있습니다. 여기서 바꾼 값은 내 기록에 남지 않습니다.
+            </span>
+          </div>
+        )}
+      </Section>
+      {tryOpen && <SbiCalculator player={me} />}
     </>
   );
 }

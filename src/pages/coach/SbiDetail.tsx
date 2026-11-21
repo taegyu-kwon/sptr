@@ -1,18 +1,29 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../../lib/store";
-import { latest } from "../../lib/gpe";
 import { fmtDate } from "../../lib/format";
 import PlayerSbiCard from "../../components/PlayerSbiCard";
-import { PageHead, Section } from "../../components/ui";
+import { SbiHistoryTable, SbiRawData, sbiHistoryOf } from "../../components/SbiHistory";
+import { SbiCalculator } from "../Sbi";
+import { Empty, Notice, PageHead, Section } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import "../../styles/coach.css";
+import "../../styles/measure.css";
 
 export default function CoachSbiDetailPage() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { db } = useStore();
+  const { db, addSbiMetrics, deleteSbiMetrics } = useStore();
   const player = db.players.find(p => p.id === id);
+  const [open, setOpen] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [msg]);
 
   if (!player) {
     return (
@@ -23,8 +34,14 @@ export default function CoachSbiDetailPage() {
     );
   }
 
-  const s = latest(player);
   const m = player.sbiMetrics;
+  const history = sbiHistoryOf(player);
+
+  const openForm = () => {
+    setOpen(true);
+    setMsg(null);
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
 
   return (
     <>
@@ -32,41 +49,61 @@ export default function CoachSbiDetailPage() {
         title={player.name}
         desc={<>{player.position} · {player.grade}학년 · 등번호 {player.backNumber}</>}
         actions={
-          <button type="button" className="btn ghost sm" onClick={() => nav("/c/sbi")}>
-            <Icon.ArrowLeft />
-            SBI/SMI 리스트
-          </button>
+          <>
+            <button type="button" className="btn ghost sm" onClick={() => nav("/c/sbi")}>
+              <Icon.ArrowLeft />
+              SBI/SMI 리스트
+            </button>
+            {!open && (
+              <button type="button" className="btn sm" onClick={openForm}>
+                <Icon.Plus />
+                측정값 입력
+              </button>
+            )}
+          </>
         }
       />
 
       <PlayerSbiCard player={player} />
 
-      {m && (
-        <Section title="측정 원자료" meta={m.date ? `측정일 ${fmtDate(m.date)}` : "측정일 미기록"}>
-          <div className="panel">
-            <div className="columns n2">
-              <div className="col">
-                <div className="col-head"><h4>신체 · 스피드</h4></div>
-                <div className="kv">
-                  <div className="kv-row"><span className="k">신장 / 체중</span><span className="v">{s.body.height}cm / {s.body.weight}kg</span></div>
-                  <div className="kv-row"><span className="k">최고 구속</span><span className="v">{s.practical.maxVelo} km/h</span></div>
-                  <div className="kv-row"><span className="k">10m 스프린트</span><span className="v">{m.sprint} 초</span></div>
-                  <div className="kv-row"><span className="k">버티컬 점프</span><span className="v">{m.vertical} cm</span></div>
-                </div>
-              </div>
-              <div className="col">
-                <div className="col-head"><h4>근력 · 역학</h4></div>
-                <div className="kv">
-                  <div className="kv-row"><span className="k">스쿼트 / 외발 데드 / 푸쉬업</span><span className="v">{m.squatReps}개 / {m.deadReps}회 / {m.pushReps}개</span></div>
-                  <div className="kv-row"><span className="k">제동력 착지거리</span><span className="v">{m.landDist} cm</span></div>
-                  <div className="kv-row"><span className="k">가속효율 (상체만 / 전신)</span><span className="v">{m.upperOnly}m / {m.fullBody}m</span></div>
-                  <div className="kv-row"><span className="k">팔꿈치 폄 Method 2</span><span className="v">{m.elbowThrow} m</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </Section>
+      {msg && <Notice kind="ok" className="mt16">{msg}</Notice>}
+
+      <div ref={formRef} className="measure-anchor" />
+      {open && (
+        <SbiCalculator
+          key={`${player.id}:${history.length}`}
+          player={player}
+          onSave={metrics => {
+            addSbiMetrics(player.id, metrics);
+            setOpen(false);
+            setMsg(`${fmtDate(metrics.date!)} SBI/SMI 측정값을 저장했습니다. 측정 이력에 추가되었습니다.`);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          onCancel={() => setOpen(false)}
+        />
       )}
+
+      <Section
+        title="지난 측정 이력"
+        meta={history.length ? `총 ${history.length}회 · 지난 측정의 신장·구속은 그 측정일 이전 측정 기록 기준` : undefined}
+      >
+        <div className="panel">
+          {history.length ? (
+            <SbiHistoryTable
+              player={player}
+              onDelete={index => {
+                const target = history[index];
+                deleteSbiMetrics(player.id, index);
+                setMsg(`${target?.date ? fmtDate(target.date) : "측정일 미기록"} SBI/SMI 측정을 삭제했습니다.`);
+              }}
+            />
+          ) : (
+            <Empty>아직 저장된 SBI/SMI 측정이 없습니다. '측정값 입력'으로 첫 측정을 저장하세요.</Empty>
+          )}
+        </div>
+      </Section>
+
+      {m && <SbiRawData player={player} m={m} />}
     </>
   );
 }

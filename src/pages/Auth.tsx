@@ -4,16 +4,17 @@ import { useStore } from "../lib/store";
 import { BrandMark } from "../components/icons";
 import { FieldArtwork } from "../components/ClubArtwork";
 import { Notice, Seg } from "../components/ui";
+import { relationOf } from "../lib/codes";
+import "../styles/team.css";
 
 export default function Auth() {
-  const { login, signup, resetDemo } = useStore();
+  const { login, signup, resetDemo, checkCode } = useStore();
   const nav = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetDone, setResetDone] = useState(false);
 
@@ -28,8 +29,8 @@ export default function Auth() {
       if (err) setError(err);
       else goHome();
     } else {
-      if (!verified) {
-        setError("본인인증을 먼저 완료해주세요.");
+      if (codeInfo?.error) {
+        setError(codeInfo.error);
         return;
       }
       const err = signup({ email, password, name, code });
@@ -38,11 +39,27 @@ export default function Auth() {
     }
   };
 
-  const fill = (em: string) => {
-    setMode("login");
-    setEmail(em);
-    setPassword("demo1234");
+  /** 체험 계정으로 바로 로그인 */
+  const tryDemo = (em: string) => {
+    setResetDone(false);
+    const err = login(em, "demo1234");
+    if (err) setError(`${err} 체험 계정을 처음 상태로 돌리려면 아래 '데모 데이터 초기화'를 누르세요.`);
+    else goHome();
   };
+
+  /** 입력한 가입 코드가 누구의 어떤 계정인지 — 형식이 갖춰졌을 때만 안내한다 */
+  const codeInfo = mode === "signup" && code.trim().length >= 6 ? checkCode(code) : null;
+  const codeOk = codeInfo && !codeInfo.error && codeInfo.code ? codeInfo.code : null;
+  const codeRelation = codeOk?.role === "player" ? relationOf(codeOk) : null;
+  /** 선수 본인 코드는 이름이 명단 이름으로 정해져 있어 이름 칸을 두지 않는다 */
+  const nameFixed = codeRelation === "self";
+  const codeGuide = !codeOk
+    ? null
+    : codeOk.role === "coach"
+      ? "코칭스태프 계정으로 가입합니다."
+      : codeRelation === "parent"
+        ? `${codeInfo!.player!.name} 선수의 학부모 계정으로 가입합니다. 선수 화면을 보기 전용으로 사용합니다.`
+        : `${codeInfo!.player!.name} 선수 계정으로 가입합니다.`;
 
   return (
     <div className="auth">
@@ -70,7 +87,7 @@ export default function Auth() {
           <p className="auth-sub">
             {mode === "login"
               ? "이메일과 비밀번호를 입력하세요."
-              : "팀에서 받은 개별 가입 코드가 필요합니다."}
+              : "코치에게 받은 가입 코드와 이메일로 가입합니다."}
           </p>
 
           <form className="auth-form" onSubmit={submit}>
@@ -86,39 +103,24 @@ export default function Auth() {
             {mode === "signup" && (
               <>
                 <div className="field">
-                  <label>이름</label>
-                  <input value={name} onChange={e => setName(e.target.value)} placeholder="실명 입력" required />
-                </div>
-                <div className="field">
-                  <label>본인인증</label>
-                  {verified ? (
-                    <Notice kind="ok">본인인증이 완료되었습니다.</Notice>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      onClick={() => {
-                        if (!name.trim()) {
-                          setError("이름을 먼저 입력해주세요.");
-                          return;
-                        }
-                        setError(null);
-                        setVerified(true);
-                      }}
-                    >
-                      휴대폰 본인인증 (데모: 클릭 시 완료)
-                    </button>
-                  )}
-                </div>
-                <div className="field">
-                  <label>개별 가입 코드</label>
+                  <label htmlFor="auth-code">가입 코드</label>
                   <input
+                    id="auth-code"
                     value={code}
-                    onChange={e => setCode(e.target.value)}
-                    placeholder="팀에 제공된 코드 입력 (예: SPTR-PLAYER-01)"
+                    onChange={e => { setCode(e.target.value.toUpperCase()); setError(null); }}
+                    placeholder="코치에게 받은 코드 (예: SPTR-AB12-CD34)"
+                    autoComplete="off"
                     required
                   />
+                  {codeGuide && <Notice kind="ok">{codeGuide}</Notice>}
+                  {codeInfo?.error && <Notice kind="warn">{codeInfo.error}</Notice>}
                 </div>
+                {!nameFixed && (
+                  <div className="field">
+                    <label htmlFor="auth-name">{codeRelation === "parent" ? "학부모 이름" : "이름"}</label>
+                    <input id="auth-name" value={name} onChange={e => setName(e.target.value)} placeholder="실명 입력" required autoComplete="name" />
+                  </div>
+                )}
               </>
             )}
             <div className="field">
@@ -138,21 +140,19 @@ export default function Auth() {
           </form>
 
           <div className="auth-demo">
-            <div><b className="strong">데모 계정</b> · 클릭하면 자동 입력 (비밀번호 demo1234)</div>
-            <div className="row">
-              <span className="lbl">선수/학부모</span>
-              <button type="button" className="chip" onClick={() => fill("player@sptr.demo")}>player@sptr.demo</button>
+            <div><b className="strong">체험하기</b> <span className="auth-try-note">· 예시 팀 데이터로 바로 둘러볼 수 있습니다</span></div>
+            <div className="auth-try">
+              <button type="button" className="btn outline" onClick={() => tryDemo("coach@sptr.demo")}>코치로 체험하기</button>
+              <button type="button" className="btn outline" onClick={() => tryDemo("player@sptr.demo")}>선수로 체험하기</button>
             </div>
-            <div className="row">
-              <span className="lbl">코칭스태프</span>
-              <button type="button" className="chip" onClick={() => fill("coach@sptr.demo")}>coach@sptr.demo</button>
-            </div>
-            <div className="row">
-              <span className="lbl">가입 코드</span>
-              {["SPTR-PLAYER-01", "SPTR-PLAYER-02", "SPTR-COACH-01"].map(c => (
-                <button type="button" className="chip" key={c} onClick={() => { setMode("signup"); setCode(c); }}>{c}</button>
-              ))}
-            </div>
+            {mode === "signup" && (
+              <div className="auth-codes">
+                <span className="auth-try-note">체험용 가입 코드</span>
+                {["SPTR-PLAYER-01", "SPTR-COACH-01"].map(c => (
+                  <button type="button" className="chip" key={c} onClick={() => { setCode(c); setError(null); }}>{c}</button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="auth-foot">
             <button
@@ -161,7 +161,6 @@ export default function Auth() {
               onClick={() => {
                 resetDemo();
                 setError(null);
-                setVerified(false);
                 setResetDone(true);
               }}
             >

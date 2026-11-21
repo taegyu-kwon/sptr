@@ -15,7 +15,7 @@ function FeedList({ items, tone }: { items: FeedbackItem[]; tone: "brand" | "vio
             <div className="feed-meta">
               <b>{f.author}</b>
               <span className={`pill${tone === "violet" ? " violet" : ""}`}>{f.category}</span>
-              <span className="date">{fmtDate(f.date)}</span>
+              <span className="date">{fmtDate(f.date)}{f.updatedAt ? " · 수정됨" : ""}</span>
             </div>
             <div className="feed-body">{f.content}</div>
           </div>

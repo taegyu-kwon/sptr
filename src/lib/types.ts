@@ -79,8 +79,19 @@ export interface Player {
   bats?: BatHand; // 치는 방향
   records: Snapshot[];
   sbiMetrics?: SbiMetrics;
+  /** SBI/SMI 측정 이력(측정일 오름차순). 없으면 sbiMetrics 1건만 있는 예전 데이터 → sbiMetrics는 항상 최신값 */
+  sbiHistory?: SbiMetrics[];
   /** 특이사항(재활·부상 등). 없거나 "정상"이면 표시하지 않는다 */
   status?: PlayerStatus;
+  /** 보관(졸업·이적·기타). 있으면 명단·순위·라인업·출석에서 빠지고 로그인할 수 없다. 지난 기록은 남는다 */
+  archived?: PlayerArchive;
+}
+
+export type ArchiveReason = "졸업" | "이적" | "기타";
+
+export interface PlayerArchive {
+  reason: ArchiveReason;
+  at: string; // 보관한 날 YYYY-MM-DD
 }
 
 export type PlayerStatusKind = "정상" | "재활" | "부상" | "휴식" | "기타";
@@ -121,6 +132,8 @@ export interface FeedbackItem {
   date: string;
   category: string;
   content: string;
+  /** 코치가 내용을 고친 시각 ISO (고친 적 없으면 없음) */
+  updatedAt?: string;
 }
 
 export interface TrainingSlot {
@@ -168,6 +181,8 @@ export interface GameRecord {
   result: "승" | "패" | "무";
   batting: BattingLine[];
   pitching: PitchingLine[];
+  /** 월간 일정(sptr-schedule-v1)의 예정 경기 id — "결과 입력"으로 등록한 기록이면 연결된다 */
+  scheduledGameId?: string;
 }
 
 /** 라인업에서 맡는 수비 위치. 지명타자는 수비에 나가지 않는다 */
@@ -212,6 +227,8 @@ export interface User {
   role: Role;
   teamId: string;
   playerId: string | null; // player 전용
+  /** 선수 계정의 주인 — 학부모 코드로 가입하면 "parent"(보기 전용). 없으면 본인 */
+  relation?: "self" | "parent";
 }
 
 export interface SignupCode {
@@ -220,6 +237,14 @@ export interface SignupCode {
   teamId: string;
   playerName: string | null;
   used: boolean;
+  /** 연결된 선수 id. 예전 코드에는 없어 이름(playerName)으로 찾는다 */
+  playerId?: string;
+  issuedAt?: string; // 발급일 YYYY-MM-DD
+  expiresAt?: string; // 만료일 YYYY-MM-DD (이 날까지 사용 가능). 없으면 만료 없음(예전 코드)
+  /** 코치가 폐기했거나 재발급으로 무효가 된 코드 */
+  revoked?: boolean;
+  /** 선수 코드의 대상 — 본인 / 학부모. 없으면 본인 */
+  relation?: "self" | "parent";
 }
 
 export interface DB {
