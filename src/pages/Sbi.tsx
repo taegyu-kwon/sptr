@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import "../styles/sbi.css";
 import { useStore } from "../lib/store";
 import { latest } from "../lib/gpe";
-import { today } from "../lib/roster";
+import { todayISO } from "../lib/schedule";
 import { fmtDate, r1 } from "../lib/format";
 import {
   C_U15, LOADS, clamp100,
@@ -220,7 +220,7 @@ export default function SbiPage() {
       return;
     }
     saveSbiMetrics(user.playerId, {
-      date: today(),
+      date: todayISO(),
       sprint: parse(sprint)!,
       vertical: parse(vertical)!,
       squatReps: parse(squat)!,

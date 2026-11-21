@@ -97,12 +97,12 @@ export default function AttendancePage() {
             <input type="date" className="input" value={date} max={today} onChange={e => e.target.value && setDate(e.target.value)} />
             <button
               type="button"
-              className="icon-btn"
+              className="icon-btn att-next"
               aria-label="다음날"
               disabled={date >= today}
               onClick={() => setDate(addDays(date, 1))}
             >
-              <Icon.ChevronRight />
+              <Icon.ArrowLeft />
             </button>
             {date !== today && (
               <button type="button" className="btn ghost sm" onClick={() => setDate(today)}>오늘</button>
@@ -178,7 +178,7 @@ export default function AttendancePage() {
                 </span>
               </div>
               <div className="tbl-wrap">
-                <table className="tbl att-tbl">
+                <table className={`tbl att-tbl${editing ? " editing" : ""}`}>
                   <thead>
                     <tr><th>선수</th><th>상태</th>{!editing && <th>체크</th>}<th>메모</th></tr>
                   </thead>

@@ -43,3 +43,9 @@
   font-size: 20px; font-weight: 700; letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
+
+/* 팀 내 순위 — 좁은 화면에서 실전 열이 잘리지 않게 */
+@media (max-width: 600px) {
+  .rank-tbl th, .rank-tbl td { padding-left: 6px; padding-right: 6px; }
+  .rank-tbl .who .avatar { display: none; }
+}

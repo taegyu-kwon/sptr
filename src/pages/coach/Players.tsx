@@ -123,7 +123,7 @@ export default function PlayersPage() {
     if (!trimmed) return setError("선수 이름을 입력하세요.");
     if (players.some(p => p.name === trimmed))
       return setError("같은 이름의 선수가 이미 있습니다. 구분할 수 있게 입력하세요.");
-    if (!Number.isFinite(bn) || bn < 0 || bn > 99)
+    if (!Number.isInteger(bn) || bn < 0 || bn > 99)
       return setError("등번호는 0에서 99 사이의 숫자로 입력하세요.");
     const dup = players.find(p => p.backNumber === bn);
     if (dup) return setError(`등번호 ${bn}번은 ${dup.name} 선수가 쓰고 있습니다. 다른 번호를 입력하세요.`);

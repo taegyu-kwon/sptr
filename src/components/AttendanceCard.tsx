@@ -29,7 +29,7 @@ export default function AttendanceCard({ records, empty }: { records: Attendance
                   <td>{fmtDate(a.date)}</td>
                   <td><span className={`pill ${attendanceTone(a.status)}`}>{a.status}</span></td>
                   <td className="dim">
-                    {fmtTime(a.checkedAt) ?? "-"}
+                    {a.status === "결석" || a.status === "사유결석" ? "-" : fmtTime(a.checkedAt) ?? "-"}
                     {a.source === "코치" ? " · 코치 수정" : ""}
                   </td>
                   <td className="dim">{a.note ?? ""}</td>

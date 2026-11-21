@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useStore } from "../../lib/store";
 import { latest } from "../../lib/gpe";
+import { todayISO } from "../../lib/schedule";
 import type { Snapshot } from "../../lib/types";
 import { PageHead, Notice } from "../../components/ui";
 
@@ -83,7 +84,7 @@ export default function InputPage() {
     }
     setError(null);
     const snap: Snapshot = {
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISO(),
       body: { ...body },
       athletic: { ...athletic },
       practical: { ...practical },

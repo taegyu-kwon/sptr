@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import { useStore } from "../../lib/store";
 import { fmtDate } from "../../lib/format";
+import { todayISO } from "../../lib/schedule";
 import { Avatar, Empty, Notice, PageHead } from "../../components/ui";
 
 export default function CoachFeedbackPage() {
   const { db, user, setDB } = useStore();
   const teamId = user!.teamId;
-  const players = db.players.filter(p => p.teamId === teamId);
+  const players = db.players
+    .filter(p => p.teamId === teamId)
+    .sort((a, b) => b.grade - a.grade || a.backNumber - b.backNumber);
 
   const [target, setTarget] = useState<string>("team");
   const [category, setCategory] = useState("훈련");
@@ -24,7 +27,7 @@ export default function CoachFeedbackPage() {
           teamId,
           playerId: target === "team" ? null : target,
           author: user!.name,
-          date: new Date().toISOString().slice(0, 10),
+          date: todayISO(),
           category,
           content: content.trim(),
         },
@@ -46,7 +49,7 @@ export default function CoachFeedbackPage() {
   return (
     <>
       <PageHead
-        title="팀 피드백"
+        title="코칭 피드백"
         desc="개별 선수 또는 팀 전체에게 피드백을 작성합니다. 선수/학부모 피드백 페이지에 즉시 공개됩니다."
       />
 
@@ -62,7 +65,7 @@ export default function CoachFeedbackPage() {
                 <select value={target} onChange={e => setTarget(e.target.value)}>
                   <option value="team">팀 전체</option>
                   {players.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.position})</option>
+                    <option key={p.id} value={p.id}>#{p.backNumber} {p.name} ({p.grade}학년 · {p.position})</option>
                   ))}
                 </select>
               </div>

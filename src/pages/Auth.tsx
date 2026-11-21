@@ -15,12 +15,14 @@ export default function Auth() {
   const [code, setCode] = useState("");
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState(false);
 
   const goHome = () => nav("/");
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setResetDone(false);
     if (mode === "login") {
       const err = login(email, password);
       if (err) setError(err);
@@ -153,8 +155,20 @@ export default function Auth() {
             </div>
           </div>
           <div className="auth-foot">
-            <button type="button" className="link-btn" onClick={resetDemo}>데모 데이터 초기화</button>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => {
+                resetDemo();
+                setError(null);
+                setVerified(false);
+                setResetDone(true);
+              }}
+            >
+              데모 데이터 초기화
+            </button>
           </div>
+          {resetDone && <Notice kind="ok" className="mt12">데모 데이터를 처음 상태로 되돌렸습니다.</Notice>}
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@
 .att-date { display: flex; align-items: center; gap: 6px; }
 .att-date .input { width: auto; min-width: 150px; }
 .att-date .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.att-date .att-next svg { transform: scaleX(-1); }
 
 /* 그날 일정 칩 */
 .att-day { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -17,6 +18,15 @@
 .att-tbl td { padding-top: 8px; padding-bottom: 8px; }
 .att-tbl .seg { white-space: nowrap; }
 .att-tbl .att-note { min-width: 140px; }
+/* 학년별 표가 따로 그려져도 열 너비가 같도록 고정 */
+@media (min-width: 761px) {
+  .att-tbl { table-layout: fixed; }
+  .att-tbl th:nth-child(1) { width: 34%; }
+  .att-tbl th:nth-child(2) { width: 16%; }
+  .att-tbl th:nth-child(3) { width: 22%; }
+  .att-tbl.editing th:nth-child(2) { width: 320px; }
+  .att-tbl.editing th:nth-child(3) { width: auto; }
+}
 
 /* 최근 기록에서 지금 열린 날짜 */
 .tbl tr.att-on td { background: var(--surface-2); }

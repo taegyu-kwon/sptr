@@ -118,11 +118,14 @@ body { background: var(--bg); }
 .auth-form .btn { font-size: 13px; }
 .auth-demo { margin-top: 28px; padding: 18px 0 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; font-size: 12px; }
 .auth-demo .chip { font-size: 12px; background: #f1f4f9; }
-.auth-demo .row .lbl { min-width: 60px; }
+.auth-demo .row { padding-left: 76px; }
+.auth-demo .row .lbl { min-width: 70px; width: 70px; margin-left: -76px; margin-right: 0; white-space: nowrap; flex-shrink: 0; }
 .auth-foot { margin-top: 22px; }
 .auth-foot .link-btn { font-size: 12px; }
 @media (min-width: 1600px) { .clubhouse { --sidebar-width: 250px; } .main { padding-top: 42px; } }
 @media (max-width: 1200px) and (min-width: 1001px) { .clubhouse { --sidebar-width: 205px; } .main { padding: 30px 24px 48px; } .workspace-topbar { padding: 0 24px; } .workspace-brand { padding-left: 20px; padding-right: 15px; } .brand-edition { font-size: 6px; } }
+/* 노트북 높이(900px 이하)에서도 계정·로그아웃이 스크롤 없이 보이도록 장식 노트를 숨긴다 */
+@media (max-height: 980px) { .workspace-sidebar .sidebar-note { display: none; } }
 @media (max-width: 1000px) {
   .workspace-sidebar { display: none; }
   .workspace-content { margin-left: 0; }

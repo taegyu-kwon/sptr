@@ -14,7 +14,12 @@ export interface NewPlayerInput {
   weight: number; // kg
 }
 
-export const today = () => new Date().toISOString().slice(0, 10);
+/** 오늘 날짜(YYYY-MM-DD) — 기기 현지 시간 기준. toISOString()은 UTC라 한국 오전 9시 전에는 전날이 된다 */
+export const today = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 /* ---------- 포지션 · 투타 ---------- */
 

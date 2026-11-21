@@ -182,7 +182,7 @@ export default function GrowthPage() {
           <LineChart data={rows}>
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
-            <YAxis tick={tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={34} />
+            <YAxis tick={tick} domain={["auto", "auto"]} axisLine={false} tickLine={false} width={34} />
             <Tooltip {...tooltip} />
             <Line type="monotone" dataKey="키" stroke="var(--chart-2)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="몸무게" stroke="var(--chart-5)" strokeWidth={2} dot={false} activeDot={activeDot} />
@@ -202,7 +202,7 @@ export default function GrowthPage() {
           <LineChart data={rows}>
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
-            <YAxis tick={tick} domain={["dataMin - 5", "dataMax + 5"]} axisLine={false} tickLine={false} width={34} />
+            <YAxis tick={tick} domain={["auto", "auto"]} axisLine={false} tickLine={false} width={34} />
             <Tooltip {...tooltip} />
             <Line type="monotone" dataKey="구속" name={veloLabel} stroke="var(--chart-4)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line type="monotone" dataKey="커맨드" name={cmdLabel} stroke="var(--chart-2)" strokeWidth={2} dot={false} activeDot={activeDot} />
@@ -221,8 +221,8 @@ export default function GrowthPage() {
           <LineChart data={rows}>
             <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
             <XAxis dataKey="date" tick={tick} axisLine={false} tickLine={false} tickMargin={8} />
-            <YAxis yAxisId="l" tick={tick} domain={["dataMin - 0.3", "dataMax + 0.3"]} axisLine={false} tickLine={false} width={34} />
-            <YAxis yAxisId="r" orientation="right" tick={tick} domain={["dataMin - 10", "dataMax + 10"]} axisLine={false} tickLine={false} width={34} />
+            <YAxis yAxisId="l" tick={tick} domain={["auto", "auto"]} axisLine={false} tickLine={false} width={34} />
+            <YAxis yAxisId="r" orientation="right" tick={tick} domain={["auto", "auto"]} axisLine={false} tickLine={false} width={34} />
             <Tooltip {...tooltip} />
             <Line yAxisId="l" type="monotone" dataKey="60yd" name="60yd (초, 낮을수록 좋음)" stroke="var(--chart-5)" strokeWidth={2} dot={false} activeDot={activeDot} />
             <Line yAxisId="r" type="monotone" dataKey="스쿼트" name="스쿼트 (kg)" stroke="var(--chart-3)" strokeWidth={2} dot={false} activeDot={activeDot} />

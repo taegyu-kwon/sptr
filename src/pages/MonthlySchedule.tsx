@@ -14,6 +14,10 @@ type Filter = "전체" | GameKind;
 const CAL_DOW = ["일", "월", "화", "수", "목", "금", "토"];
 const kindTone = (k: GameKind) => (k === "정식대회" ? "warn" : "info");
 const monthLabel = (m: string) => `${m.slice(0, 4)}년 ${Number(m.slice(5, 7))}월`;
+/** 비어 있는 값은 빼고 " · "로 잇는다 (장소 미입력 시 끝에 점이 남지 않게) */
+const joinDot = (...xs: (string | undefined)[]) => xs.filter(x => x && x.trim()).join(" · ");
+const cupRange = (t: Tournament) =>
+  t.startDate === t.endDate ? fmtShort(t.startDate) : `${fmtShort(t.startDate)}–${fmtShort(t.endDate)}`;
 
 export default function MonthlySchedulePage() {
   const { user } = useStore();
@@ -55,7 +59,11 @@ export default function MonthlySchedulePage() {
   const selNotice = notices.find(n => n.date === sel);
   const selCup = tnOf(sel);
 
-  const removeGame = (id: string) => update(p => ({ ...p, games: p.games.filter(g => g.id !== id) }));
+  const removeGame = (id: string) => {
+    const g = games.find(x => x.id === id);
+    if (g && !window.confirm(`${fmtDate(g.date)} vs ${g.opponent} 경기를 일정에서 삭제할까요?`)) return;
+    update(p => ({ ...p, games: p.games.filter(x => x.id !== id) }));
+  };
   const saveDir = (d: Direction) =>
     update(p => ({ ...p, directions: [...p.directions.filter(x => !(x.teamId === teamId && x.month === d.month)), d] }));
 
@@ -84,7 +92,7 @@ export default function MonthlySchedulePage() {
               <div className="cup-dday">{inCup ? `${daysBetween(nextCup.startDate, today) + 1}일차` : dday(today, nextCup.startDate)}</div>
               <div className="cup-name">{nextCup.name}</div>
               <div className="sub">
-                {fmtShort(nextCup.startDate)}–{fmtShort(nextCup.endDate)} · {nextCup.place}
+                {joinDot(cupRange(nextCup), nextCup.place)}
               </div>
               {cupGames.length > 0 && (
                 <div className="cup-games">
@@ -226,6 +234,7 @@ export default function MonthlySchedulePage() {
           onAddGame={g => update(p => ({ ...p, games: [...p.games, g] }))}
           onAddCup={t => update(p => ({ ...p, tournaments: [...p.tournaments, t] }))}
           onRemoveCup={id =>
+            window.confirm(`대회 '${tournaments.find(t => t.id === id)?.name ?? ""}'를 삭제할까요? 대회에 묶인 경기는 일정에 남습니다.`) &&
             update(p => ({
               ...p,
               tournaments: p.tournaments.filter(t => t.id !== id),
@@ -253,8 +262,7 @@ function GameRow({
       <div className="grow">
         <div className="title">vs {g.opponent}</div>
         <div className="sub">
-          {g.time} · {g.place}
-          {tn && <> · {tn.name}{g.round ? ` ${g.round}` : ""}</>}
+          {joinDot(g.time, g.place, tn ? `${tn.name}${g.round ? ` ${g.round}` : ""}` : "")}
         </div>
       </div>
       <div className="right flex gap8">
@@ -432,7 +440,7 @@ function AddForms({
               </div>
               <div className="field">
                 <label>상대 팀</label>
-                <input value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="예: 분당중" required />
+                <input value={opponent} onChange={e => setOpponent(e.target.value)} placeholder="예: 분당고" required />
               </div>
               <div className="field">
                 <label>장소</label>
@@ -487,7 +495,7 @@ function AddForms({
                 <div className="row compact" key={t.id}>
                   <div className="grow">
                     <div className="title">{t.name}</div>
-                    <div className="sub">{fmtShort(t.startDate)}–{fmtShort(t.endDate)} · {t.place}</div>
+                    <div className="sub">{joinDot(cupRange(t), t.place)}</div>
                   </div>
                   <button className="icon-btn sm danger" aria-label="대회 삭제" title="대회 삭제" onClick={() => onRemoveCup(t.id)}>
                     <Icon.Trash />

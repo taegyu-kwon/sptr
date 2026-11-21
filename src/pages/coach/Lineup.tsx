@@ -234,7 +234,7 @@ function Editor({ teamId, game, tn }: { teamId: string; game?: ScheduledGame; tn
 
   const title = game ? `${fmtDate(game.date)} vs ${game.opponent}` : "정식 경기 기본 라인업";
   const sub = game
-    ? `${game.time} · ${game.place}${tn ? ` · ${tn.name}${game.round ? ` ${game.round}` : ""}` : ""}`
+    ? [game.time, game.place, tn ? `${tn.name}${game.round ? ` ${game.round}` : ""}` : ""].filter(Boolean).join(" · ")
     : "경기별 전용 라인업이 없는 모든 정식 경기에 쓰입니다.";
 
   return (

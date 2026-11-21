@@ -140,7 +140,7 @@ export default function TrainingNoticePage() {
 
           {dayGames.map(g => (
             <Notice key={g.id} kind={g.kind === "정식대회" ? "warn" : "info"} className="mt12">
-              <b>{g.kind}{g.round ? ` · ${g.round}` : ""}</b> vs {g.opponent} · {g.time} · {g.place}
+              <b>{g.kind}{g.round ? ` · ${g.round}` : ""}</b> vs {[g.opponent, g.time, g.place].filter(Boolean).join(" · ")}
             </Notice>
           ))}
 
@@ -237,6 +237,7 @@ export default function TrainingNoticePage() {
           notices={notices}
           onSave={save}
           onDelete={() =>
+            window.confirm(`${fmtDate(date)} 훈련 공지를 삭제할까요?`) &&
             update(prev => ({ ...prev, notices: prev.notices.filter(n => !(n.teamId === teamId && n.date === date)) }))
           }
         />
@@ -358,6 +359,9 @@ function NoticeEditor({
       ...draft,
       items: [...notice.items, { id: uid("ni"), start, end, group, title: title.trim(), detail: detail.trim() || undefined }],
     });
+    // 다음 항목을 바로 이어서 입력할 수 있게 비운다
+    setTitle("");
+    setDetail("");
   };
 
   return (

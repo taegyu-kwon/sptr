@@ -195,7 +195,7 @@ const TEMPLATES: Record<number, Tpl> = {
   },
 };
 
-const OPPONENTS = ["분당중", "동성중", "한강중", "용인중", "수원북중", "안산중", "광주중앙중"];
+const OPPONENTS = ["분당고", "동성고", "한강고", "용인고", "수원북고", "안산고", "광주중앙고"];
 
 function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "seeded"> {
   const today = todayISO();
@@ -218,10 +218,10 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   };
   tournaments.push(t1, t2);
   games.push(
-    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "수원북중", place: "수원 야구장 A구장", tournamentId: t1.id, round: "1회전" },
-    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "안산중", place: "수원 야구장 B구장", tournamentId: t1.id, round: "2회전" },
-    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산중앙중", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
-    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구경운중", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
+    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "수원북고", place: "수원 야구장 A구장", tournamentId: t1.id, round: "1회전" },
+    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "안산고", place: "수원 야구장 B구장", tournamentId: t1.id, round: "2회전" },
+    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산중앙고", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
+    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구경운고", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
   );
 
   const inTournament = (iso: string) => tournaments.some(t => iso >= t.startDate && iso <= t.endDate);
@@ -238,7 +238,7 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   }
   // 주중 연습경기 하나(다음 주 수요일)
   const nextWed = addDays(weekStart(today), 9);
-  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "성남서중", place: "학교 운동장 (홈)" });
+  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "성남서고", place: "학교 운동장 (홈)" });
 
   // 훈련 공지: 지난주 월요일 ~ 다음 주 토요일
   const notices: DailyNotice[] = [];

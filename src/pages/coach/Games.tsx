@@ -3,9 +3,9 @@ import { useStore } from "../../lib/store";
 import { Cell, Cells, Empty, Medal, Notice, PageHead } from "../../components/ui";
 import { Icon } from "../../components/icons";
 import { fmtDate } from "../../lib/format";
-import { today } from "../../lib/roster";
+import { todayISO as today } from "../../lib/schedule";
 import {
-  GAME_TYPE_LABEL, battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, fmtIp, gameTypeOf, isValidIp,
+  GAME_TYPE_LABEL, battingAvg, battingTotalsByPlayer, eraOf, fmtAvg, fmtEra, fmtIp, gameTypeOf, gamesInYear, isValidIp,
   pitchingTotalsByPlayer,
 } from "../../lib/stats";
 import type { BattingLine, GameType, PitchingLine } from "../../lib/types";
@@ -205,14 +205,17 @@ export default function GamesPage() {
   };
 
   /* ---------- 집계 ---------- */
+  // 시즌 전적은 올해 경기만 센다 (대시보드·선수단의 '이번 시즌'과 같은 기준)
+  const seasonYear = new Date().getFullYear();
+  const seasonGames = gamesInYear(games, seasonYear);
   const record = useMemo(() => {
-    const w = games.filter(g => g.result === "승").length;
-    const l = games.filter(g => g.result === "패").length;
-    const d = games.filter(g => g.result === "무").length;
-    const rf = games.reduce((s, g) => s + g.scoreFor, 0);
-    const ra = games.reduce((s, g) => s + g.scoreAgainst, 0);
+    const w = seasonGames.filter(g => g.result === "승").length;
+    const l = seasonGames.filter(g => g.result === "패").length;
+    const d = seasonGames.filter(g => g.result === "무").length;
+    const rf = seasonGames.reduce((s, g) => s + g.scoreFor, 0);
+    const ra = seasonGames.reduce((s, g) => s + g.scoreAgainst, 0);
     return { w, l, d, rf, ra };
-  }, [games]);
+  }, [seasonGames]);
 
   const batTotals = useMemo(
     () =>
@@ -241,7 +244,7 @@ export default function GamesPage() {
 
   const resultPill = (result: string) => (result === "승" ? "good" : result === "패" ? "bad" : "warn");
 
-  const n = games.length;
+  const n = seasonGames.length;
   const diff = record.rf - record.ra;
 
   const batUsed = batRows.filter(r => r.playerId).map(r => r.playerId);
@@ -262,7 +265,7 @@ export default function GamesPage() {
       <div className="panel hero">
         <div className="flex gap24 wrap start">
           <div>
-            <div className="eyebrow mb8">시즌 전적</div>
+            <div className="eyebrow mb8">{seasonYear} 시즌 전적</div>
             <div className="display">
               {record.w}승 {record.l}패
               <span className="unit">{record.d}무 · {n}경기</span>
@@ -316,7 +319,7 @@ export default function GamesPage() {
                   type="text"
                   value={opponent}
                   onChange={e => setOpponent(e.target.value)}
-                  placeholder="예: 서울중"
+                  placeholder="예: 서울고"
                 />
               </div>
               <div className="field">

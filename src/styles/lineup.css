@@ -55,7 +55,7 @@
 @media (max-width: 600px) {
   .lu-row { grid-template-columns: 34px minmax(0, 1fr) 92px; gap: 6px; padding-right: 0; }
   .lu-row .no { font-size: 17px; }
-  .lu-row select { padding-left: 10px; padding-right: 24px; font-size: 13px; }
+  .lu-row select { padding-left: 10px; padding-right: 28px; font-size: 13px; background-position: right 6px center; }
 }
 
 .lu-issues { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }

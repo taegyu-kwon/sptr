@@ -70,7 +70,7 @@ export default function RankingPage() {
 
       <div className="panel">
         <div className="tbl-wrap">
-          <table className="tbl">
+          <table className="tbl rank-tbl">
             <thead>
               <tr>
                 <th className="rank-cell">순위</th>
