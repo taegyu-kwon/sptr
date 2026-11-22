@@ -34,6 +34,7 @@ export function errorText(err: unknown): string {
   const code = e?.code ?? "";
   if (code === "denied" || code === "42501" || msg.includes("row-level security") || msg.includes("permission denied"))
     return "권한이 없어 저장하지 못했습니다.";
+  if (code === "missing") return "고치려는 항목이 서버에 없어 저장하지 못했습니다(다른 기기에서 지워졌을 수 있습니다).";
   if (code === "23505") return "다른 기기에서 먼저 저장한 내용과 겹칩니다. 최신 내용으로 다시 불러왔습니다.";
   if (code === "23503") return "연결된 데이터가 없어 저장하지 못했습니다(다른 기기에서 지워졌을 수 있습니다).";
   if (code === "23514") return "입력값이 허용 범위를 벗어나 저장하지 못했습니다.";
@@ -307,10 +308,10 @@ async function insertRows(table: string, rows: Row[]) {
   }
 }
 /** update — 권한이 없으면 오류 없이 0행이라 돌아온 행 수로 확인한다 */
-async function updateRow(table: string, patch: Row, match: Row) {
+async function updateRow(table: string, patch: Row, match: Row, zeroCode = "denied") {
   const { data, error } = await supabase.from(table).update(patch).match(match).select();
   if (error) fail(error);
-  if (!data || data.length === 0) throw new RemoteError("0 rows updated", "denied");
+  if (!data || data.length === 0) throw new RemoteError("0 rows updated", zeroCode);
 }
 /** delete — 권한이 없으면 오류 없이 0행이라 돌아온 행 수로 확인한다 */
 async function deleteRow(table: string, match: Row) {
@@ -375,12 +376,22 @@ export function diffDB(prev: DB, next: DB, w: Writer): Op[] {
   if (prev.players !== next.players) {
     const before = new Map(prev.players.map(p => [p.id, p]));
     const playerRows: Row[] = [];
+    const playerPatches: [string, Row][] = [];
     const measureRows: Row[] = [];
     for (const p of next.players) {
       if (p.teamId !== w.teamId) continue;
       const old = before.get(p.id);
       if (old === p) continue;
-      if (!old || !same({ ...old, records: null }, { ...p, records: null })) playerRows.push(playerRow(p));
+      if (!old) playerRows.push(playerRow(p));
+      else if (!same({ ...old, records: null }, { ...p, records: null })) {
+        // 이미 있는 선수는 바뀐 칼럼만 고친다 — 옛 화면이 열린 다른 탭·기기에서 저장해도
+        // 그 사이 다른 화면에서 고친 칼럼(예: SBI 이력 ↔ 특이사항)을 옛 값으로 덮어쓰지 않게
+        const before = playerRow(old);
+        const after = playerRow(p);
+        const patch: Row = {};
+        for (const k of Object.keys(after)) if (!same(before[k], after[k])) patch[k] = after[k];
+        if (Object.keys(patch).length) playerPatches.push([p.id, patch]);
+      }
       if (old?.records === p.records) continue;
       const oldByDate = new Map((old?.records ?? []).map(r => [r.date, r]));
       const dates = new Set<string>();
@@ -393,6 +404,7 @@ export function diffDB(prev: DB, next: DB, w: Writer): Op[] {
       }
     }
     if (playerRows.length) ups.push(() => upsertRows("players", playerRows, "id"));
+    for (const [id, patch] of playerPatches) ups.push(() => updateRow("players", patch, { id }, "missing"));
     if (measureRows.length) ups.push(() => upsertRows("measurements", measureRows, "player_id,date"));
   }
 

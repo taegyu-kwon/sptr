@@ -26,23 +26,34 @@ export const dropQueue = () => { epoch++; };
 /** 대기 중인 쓰기가 모두 끝날 때까지 기다린다 */
 export const flushWrites = () => chain;
 
+/** 아직 서버에 쓰지 않은 변경(쓰는 중인 것 포함), 들어온 순서대로 */
+const waiting: { batch: Batch; epoch: number }[] = [];
+
 export function enqueue(batch: Batch) {
   if (batch.ops.length === 0) return;
   seq++;
   pending++;
   const mine = epoch;
+  const entry = { batch, epoch: mine };
+  waiting.push(entry);
   chain = chain.then(async () => {
     try {
-      if (mine !== epoch) return; // 앞선 쓰기가 실패해 버려진 변경
+      if (mine !== epoch) return; // 앞선 쓰기가 실패해 버려진 변경(메모리는 그때 이미 되돌렸다)
       for (const op of batch.ops) await op();
     } catch (err) {
       if (batch.soft) return;
       if (mine === epoch) {
         epoch++;
+        // 뒤에 줄 선 변경도 서버에 가지 않으므로 메모리에서 함께 되돌린다 — 나중 것부터 거꾸로
+        // (메인 데이터와 일정 데이터가 따로라, 실패한 변경만 되돌리면 다른 쪽의 버려진 변경이 화면에 남는다)
+        const i = waiting.indexOf(entry);
+        for (let k = waiting.length - 1; k > i; k--) if (waiting[k].epoch === mine) waiting[k].batch.rollback();
         batch.rollback();
         onFailure(err);
       }
     } finally {
+      const i = waiting.indexOf(entry);
+      if (i >= 0) waiting.splice(i, 1);
       pending--;
     }
   });

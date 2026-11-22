@@ -205,6 +205,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   /** 방금 만든 팀의 코치 프로필(예시 데이터 / 빈 팀 선택 전) */
   const pendingProfile = useRef<Record<string, unknown> | null>(null);
   const refreshing = useRef(false);
+  const retryQueued = useRef(false);
   /** 로그인·로그아웃이 바뀔 때마다 올라간다 — 늦게 도착한 읽기 결과를 버리는 데 쓴다 */
   const sessionGen = useRef(0);
   const signingOut = useRef<Promise<unknown>>(Promise.resolve());
@@ -282,17 +283,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return msg;
       }
     };
-    /** 다른 기기의 변경을 반영 — 쓰기가 진행 중이면 건너뛴다 */
+    /** 쓰기 때문에 다시 읽기를 건너뛰었거나 읽은 결과를 버렸으면, 쓰기가 끝난 뒤 한 번 더 읽는다
+        (탭에 들어오자마자 저장하면 옛 화면인 채로 다음 60초까지 남는 것을 막는다) */
+    const refreshAfterWrites = () => {
+      if (retryQueued.current) return;
+      retryQueued.current = true;
+      void flushWrites().then(() => window.setTimeout(() => { retryQueued.current = false; void refresh(); }, 300));
+    };
+    /** 다른 기기의 변경을 반영 — 쓰기가 진행 중이면 쓰기가 끝난 뒤로 미룬다 */
     const refresh = async () => {
       const w = writerRef.current;
       if (modeRef.current !== "server" || statusRef.current !== "ready" || !w) return;
-      if (isWriting() || refreshing.current) return;
+      if (isWriting()) return refreshAfterWrites();
+      if (refreshing.current) return;
       refreshing.current = true;
       const seq = writeSeq();
       const gen = sessionGen.current;
       try {
         const data = await loadTeam(w.teamId);
-        if (gen !== sessionGen.current || seq !== writeSeq() || isWriting()) return; // 읽는 사이에 바뀜 → 다음 차례에
+        if (gen !== sessionGen.current) return;
+        if (seq !== writeSeq() || isWriting()) return refreshAfterWrites(); // 읽는 사이에 저장함 → 쓰기가 끝난 뒤 다시
         if (!data.db.users.some(u => u.id === w.userId)) {
           // 내 프로필이 안 보인다 = 보관된 선수 계정이 됐거나 로그인이 끊김
           const err = await bootstrap();
