@@ -2,7 +2,24 @@
 
 브라우저 localStorage에 있던 데이터를 Supabase 서버로 옮기기 위한 테이블·권한 설계.
 전제는 `결정필요.md` "정한 것"(1·2·4·5·6·7·13·15~22번). 미정 항목(3·10·11·12·14번)은 **어느 쪽으로 정해도 테이블을 다시 짜지 않도록** 설계하고 `【미정 n】`으로 표시한다.
-기준일: 2026-10-03 · 2026-11-21 로컬 구현에 맞춰 보강 · 상태: 초안(실행 전)
+기준일: 2026-10-03 · 2026-11-21 로컬 구현에 맞춰 보강 · 상태: 초안(장기 목표 — 아래 안내 참고)
+
+> **1차 구현(2026-11-22)은 `supabase/CONTRACT.md` 가 기준이다 — 14개 테이블, 중첩 배열은 jsonb 로 단순화. 이 문서의 25개 테이블 설계는 장기 목표다.** 지금 서버에 있는 것을 알려면 `supabase/CONTRACT.md` 와 `supabase/migrations/001~003` 을 본다.
+>
+> | | 이 문서(장기 목표) | 1차 구현(2026-11-22) |
+> |---|---|---|
+> | 테이블 | 25개 | 14개 — `teams`·`profiles`·`players`·`measurements`·`feedbacks`·`games`·`lineups`·`signup_codes`·`attendance`·`notices`·`notice_reads`·`scheduled_games`·`tournaments`·`directions` |
+> | 없는 테이블 | | `app_admins`·`team_members`·`player_accounts`·`metric_items`·`player_scores`·`batting_lines`·`pitching_lines`·`lineup_slots`·`player_notes`·`notice_items` (훈련 공지는 `daily_notices` 대신 `notices`, 월간 훈련 방향은 `directions`) |
+> | 중첩 데이터 | 줄마다 별도 테이블 | jsonb 칼럼 — `games.batting`·`pitching`, `lineups.order`, `notices.items`, `directions.items`, `players.status`·`archived`·`sbi_metrics`·`sbi_history`, `measurements.body`·`athletic`·`practical` |
+> | id | `uuid`(서버 생성) | 앱이 만드는 `text`(팀 id 만 서버 생성, `profiles.id` 는 Auth 의 uuid) |
+> | 역할 | 6개(관리자·야구부장·감독·코치·선수·학부모), `team_members`·`player_accounts` 로 연결 | 3가지 — `profiles.role` 코치/선수 + `relation` 본인/학부모. 계정 하나는 팀 하나·선수 하나 |
+> | 팀 만들기 | 관리자만(`create_team` 이 감독·야구부장 코드 발급) | 프로필이 없는 로그인 사용자 누구나 `create_team` → 그 팀의 코치(결정필요 28) |
+> | 가입 코드 | 감독·야구부장만 보고 발급 | 코치 누구나 보고 발급. 확인·사용은 `peek_signup_code`·`redeem_signup_code` |
+> | 측정·SBI | `measurements` 한 테이블에 입력 계정·확인 상태 포함 | `measurements` 는 선수·날짜당 1행(신체·운동능력·실전 jsonb), SBI 는 `players.sbi_history` |
+> | 점수 | 서버 함수가 계산해 `player_scores` 에 저장, 공개 범위 적용 | 서버 계산 없음 — 앱이 측정 기록으로 계산. 같은 팀의 측정 기록은 선수 기기에도 내려감 |
+> | 이닝 | 아웃 수로 저장 | 앱 표기 그대로(`pitching[].ip`, ⅓ 단위 표기) |
+> | 인증 | 이메일 인증·비밀번호 찾기(Resend) | 이메일 확인 꺼짐, 비밀번호 찾기 없음(결정필요 29) |
+> | 예시 데이터 | seed SQL | 앱의 "예시 데이터로 시작"이 코치 권한의 일반 쓰기로 올림 |
 
 ---
 
