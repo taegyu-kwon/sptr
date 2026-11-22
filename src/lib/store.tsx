@@ -10,9 +10,9 @@ import type { ArchiveReason, SignupCode, Team } from "./types";
 import { accountOfPlayer, checkSignupCode, codesOfPlayer, newCodeDates, randomCode, relationOf, type CodeCheck } from "./codes";
 
 // v3: 학년별 24명 명단·세부 포지션·투타·시즌 경기(정식/연습) 예시 데이터로 바뀌어 새 키로 시작한다
-// v4: 예시 데이터 날짜를 오늘 기준으로 만들고 상대팀·대회명을 고교 기준으로 바꿔 새 키로 시작한다
+// v6: 예시 팀이 배명중학교로 바뀌어(상대팀·대회·나이 13~15세) 새 키로 시작한다
 // v5: 예시 시합 기록이 월간 일정의 지난 경기와 연결되고, 예시 가입 코드에 발급일·만료일이 생겨 새 키로 시작한다
-const DB_KEY = "sptr-db-v5";
+const DB_KEY = "sptr-db-v6";
 const SESSION_KEY = "sptr-session-v1";
 
 function loadDB(): DB {

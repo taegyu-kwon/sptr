@@ -87,7 +87,7 @@ export default function PlayersPage() {
   const [bats, setBats] = useState<BatHand>("우");
   const [backNumber, setBackNumber] = useState(String(nextBackNumber(db.players, teamId)));
   const [grade, setGrade] = useState("1");
-  const [age, setAge] = useState("16");
+  const [age, setAge] = useState("14");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -130,7 +130,7 @@ export default function PlayersPage() {
     setBats("우");
     setBackNumber(String(nextBackNumber(db.players, teamId)));
     setGrade("1");
-    setAge("16");
+    setAge("14");
     setHeight("");
     setWeight("");
     setError(null);

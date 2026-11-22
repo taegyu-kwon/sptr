@@ -139,7 +139,7 @@ export const visibleIn = (item: { group: Group }, view: Group) =>
 
 type Tpl = { meet: string; place: string; bring: string; message: string; items: [string, string, Group, string, string?][] };
 
-const BASE_PLACE = "배명고 야구장";
+const BASE_PLACE = "배명중 야구장";
 const TEMPLATES: Record<number, Tpl> = {
   1: {
     meet: "15:40", place: BASE_PLACE, bring: "운동복, 글러브, 러닝화",
@@ -203,7 +203,7 @@ const TEMPLATES: Record<number, Tpl> = {
   },
 };
 
-const OPPONENTS = ["강동고", "동성고", "한강고", "노원고", "관악고", "마포고", "중랑고"];
+const OPPONENTS = ["강동중", "동성중", "한강중", "노원중", "관악중", "마포중", "중랑중"];
 
 /** 예시 선수단(seed.ts)의 선수 id — p1~p24. 예시 공지의 읽음 기록에 쓴다 */
 const SEED_PLAYER_IDS = Array.from({ length: 24 }, (_, i) => `p${i + 1}`);
@@ -250,18 +250,18 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   const firstSat = addDays(today, (6 - fromISO(today).getDay() + 7) % 7 || 7);
   const t1Start = addDays(firstSat, 7);
   const t1: Tournament = {
-    id: "tn-1", teamId, name: "서울 추계 고교 야구 리그", startDate: t1Start, endDate: addDays(t1Start, 3), place: "목동 야구장",
+    id: "tn-1", teamId, name: "서울 추계 중학 야구 리그", startDate: t1Start, endDate: addDays(t1Start, 3), place: "목동 야구장",
   };
   const t2Start = addDays(t1Start, 28);
   const t2: Tournament = {
-    id: "tn-2", teamId, name: "고교 동계 윈터 리그", startDate: t2Start, endDate: addDays(t2Start, 4), place: "부산 기장 드림볼파크",
+    id: "tn-2", teamId, name: "중학 동계 윈터 리그", startDate: t2Start, endDate: addDays(t2Start, 4), place: "부산 기장 드림볼파크",
   };
   tournaments.push(t1, t2);
   games.push(
-    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "성동고", place: "목동 야구장", tournamentId: t1.id, round: "1회전" },
-    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "은평고", place: "신월 야구장", tournamentId: t1.id, round: "2회전" },
-    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산해운고", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
-    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구달서고", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
+    { id: "sg-t1a", teamId, date: t1.startDate, time: "10:00", kind: "정식대회", opponent: "성동중", place: "목동 야구장", tournamentId: t1.id, round: "1회전" },
+    { id: "sg-t1b", teamId, date: addDays(t1.startDate, 2), time: "13:00", kind: "정식대회", opponent: "은평중", place: "신월 야구장", tournamentId: t1.id, round: "2회전" },
+    { id: "sg-t2a", teamId, date: t2.startDate, time: "09:00", kind: "정식대회", opponent: "부산해운중", place: "기장 드림볼파크 1구장", tournamentId: t2.id, round: "조별 1차전" },
+    { id: "sg-t2b", teamId, date: addDays(t2.startDate, 1), time: "12:00", kind: "정식대회", opponent: "대구달서중", place: "기장 드림볼파크 2구장", tournamentId: t2.id, round: "조별 2차전" },
   );
 
   const inTournament = (iso: string) => tournaments.some(t => iso >= t.startDate && iso <= t.endDate);
@@ -271,14 +271,14 @@ function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "se
   while (d <= last) {
     if (fromISO(d).getDay() === 6 && !inTournament(d)) {
       const opp = OPPONENTS[o % OPPONENTS.length];
-      games.push({ id: `sg-p${o}`, teamId, date: d, time: "10:00", kind: "연습경기", opponent: opp, place: o % 2 === 0 ? "배명고 야구장 (홈)" : `${opp} 야구장`, });
+      games.push({ id: `sg-p${o}`, teamId, date: d, time: "10:00", kind: "연습경기", opponent: opp, place: o % 2 === 0 ? "배명중 야구장 (홈)" : `${opp} 야구장`, });
       o++;
     }
     d = addDays(d, 1);
   }
   // 주중 연습경기 하나(다음 주 수요일)
   const nextWed = addDays(weekStart(today), 9);
-  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "잠실고", place: "배명고 야구장 (홈)" });
+  games.push({ id: "sg-mid", teamId, date: nextWed, time: "16:00", kind: "연습경기", opponent: "잠실중", place: "배명중 야구장 (홈)" });
 
   // 훈련 공지: 지난주 월요일 ~ 다음 주 토요일
   const notices: DailyNotice[] = [];
@@ -386,9 +386,9 @@ function addMinutesLabel(hhmm: string, mins: number) {
 
 /* ---------- 저장 ---------- */
 
-// v2: 예시 일정이 고교(서울권) 기준으로 바뀌어 새 키로 시작한다
+// v4: 예시 팀이 배명중학교(서울권 중학 상대팀·대회)로 바뀌어 새 키로 시작한다
 // v3: 예시 공지에 선수 읽음 기록이 생기고, 지난 예정 경기가 예시 시합 기록과 연결돼 새 키로 시작한다
-const KEY = "sptr-schedule-v3";
+const KEY = "sptr-schedule-v4";
 const empty = (): ScheduleDB => ({ seeded: [], notices: [], games: [], tournaments: [], directions: [] });
 
 function load(): ScheduleDB {

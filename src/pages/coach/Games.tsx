@@ -426,7 +426,7 @@ export default function GamesPage() {
                   type="text"
                   value={opponent}
                   onChange={e => setOpponent(e.target.value)}
-                  placeholder="예: 서울고"
+                  placeholder="예: 서울중"
                 />
               </div>
               <div className="field">

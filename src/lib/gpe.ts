@@ -215,7 +215,7 @@ export function evaluate(s: Snapshot): GpeResult {
   if (s.practical.kind === "투수") {
     if (body.score >= 65) {
       growthFeedback.push(
-        "신체 평가 기준 앞으로 구속 상승의 여지가 큽니다. 이를 극대화하려면 성장 주기에 맞는 웨이트 트레이닝과 식단 조절, 가속도 훈련 보충이 필요합니다."
+        "신체 평가 기준 고교 진학 후 구속 상승의 여지가 큽니다. 이를 극대화하려면 성장 주기에 맞는 웨이트 트레이닝과 식단 조절, 가속도 훈련 보충이 필요합니다."
       );
     } else {
       growthFeedback.push(
@@ -237,7 +237,7 @@ export function evaluate(s: Snapshot): GpeResult {
     }
     growthFeedback.push(
       body.score >= 65
-        ? "체격 성장 여지가 충분해 앞으로 장타 툴 발현이 기대됩니다."
+        ? "체격 성장 여지가 충분해 고교 진학 후 장타 툴 발현이 기대됩니다."
         : "체격 성장 모멘텀이 완만해, 기술 완성도와 컨택 능력 중심의 성장 전략이 적합합니다."
     );
   }
