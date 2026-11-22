@@ -13,7 +13,6 @@ import {
 import type { ArchiveReason, BatHand, PositionDetail, ThrowHand } from "../../lib/types";
 import { Avatar, Cell, Cells, Empty, GradeBadge, Notice, PageHead, RiskPill, Seg } from "../../components/ui";
 import { Icon } from "../../components/icons";
-import { JerseyArtwork } from "../../components/ClubArtwork";
 import { hasStatus, statusLabel } from "../../lib/status";
 import { todayISO } from "../../lib/schedule";
 import "../../styles/coach.css";
@@ -70,7 +69,7 @@ export default function PlayersPage() {
   const bat = useMemo(() => battingTotalsByPlayer(seasonGames), [seasonGames]);
   const pit = useMemo(() => pitchingTotalsByPlayer(seasonGames), [seasonGames]);
 
-  const [view, setView] = useState<"cards" | "table">("cards");
+  const [view, setView] = useState<"cards" | "table">("table");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RosterFilter>("전체");
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>("전체");
@@ -498,7 +497,7 @@ export default function PlayersPage() {
       ) : view === "cards" ? (
         <div className="player-card-grid">
           {tables[0].rows.map(({ p, r, s, idx, b, pt }) => <Link className={`athlete-card tone-${p.position === "투수" ? "blue" : p.position === "내야수" ? "sage" : p.position === "외야수" ? "clay" : "purple"}`} key={p.id} to={`/c/players/${p.id}`}>
-            <div className="athlete-visual"><span className="athlete-position">{playerPositionDetail(p)}</span><span className="athlete-year">{p.grade}학년</span><span className="athlete-watermark">{String(p.backNumber).padStart(2, "0")}</span><JerseyArtwork number={p.backNumber} /><span className="athlete-hand">{handLabel(p) ?? "투타 미입력"}</span></div>
+            <div className="athlete-visual"><span className="athlete-position">{playerPositionDetail(p)}</span><span className="athlete-year">{p.grade}학년</span><span className="athlete-watermark">{String(p.backNumber).padStart(2, "0")}</span><span className="athlete-hand">{handLabel(p) ?? "투타 미입력"}</span></div>
             <div className="athlete-body"><div className="athlete-name"><div><span>NO. {String(p.backNumber).padStart(2, "0")}</span><h3>{p.name}</h3></div><div className="athlete-score"><span>종합</span><b>{r.total}</b><GradeBadge grade={r.totalGrade} size={20} /></div></div><div className="athlete-stats"><div><span>신장 / 체중</span><b>{s.body.height} <small>/ {s.body.weight}</small></b><em>cm / kg</em></div><div><span>{showPitching ? "시즌 ERA" : "시즌 타율"}</span><b>{showPitching ? pt && pt.outs > 0 ? fmtEra(eraOf(pt.er, pt.ip)!) : "—" : b && b.ab > 0 ? fmtAvg(battingAvg(b.hits, b.ab)!) : "—"}</b><em>{showPitching ? pt?.games ?? 0 : b?.games ?? 0}경기</em></div><div><span>최종 R</span><b>{idx ? r1(idx.finalR) : "—"}</b><em>SBI + SMI</em></div></div><div className="athlete-bottom"><span>{statusLabel(p, today) ? <span className="pill warn">{statusLabel(p, today)}</span> : <RiskPill level={r.injuryRisk.level} />}</span><span className="athlete-open"><Icon.ChevronRight /></span></div></div>
           </Link>)}
         </div>

@@ -1,8 +1,8 @@
 /* 서버 연결에 딸린 작은 화면 요소 — 토스트 · 불러오는 중 · 체험 모드 배지 · 새 팀 시작 */
 .toast-stack { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; gap: 8px; width: min(440px, calc(100vw - 32px)); pointer-events: none; }
-.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--fg); color: #fff; font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-pop); }
-.toast.error { background: var(--bad); }
-.toast.ok { background: var(--good); }
+.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-4); color: var(--fg); font-size: 13px; line-height: 1.5; box-shadow: var(--shadow-pop); }
+.toast.error { background: var(--bad); color: #2b0a09; }
+.toast.ok { background: var(--good); color: #06240f; }
 .toast span { flex: 1; }
 .toast button { background: none; border: 0; color: inherit; font-size: 18px; line-height: 1; padding: 0 2px; cursor: pointer; opacity: .8; }
 .toast button:hover { opacity: 1; }

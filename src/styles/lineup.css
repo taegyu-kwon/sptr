@@ -44,7 +44,7 @@
   background-image: radial-gradient(circle, var(--fg-3) 1.2px, transparent 1.4px); background-size: 3px 4.7px;
 }
 .lu-row.picked { background: var(--brand-soft); box-shadow: inset 0 0 0 1px var(--brand-line); }
-.lu-row.picked .grip { background: var(--brand); color: var(--bg); }
+.lu-row.picked .grip { background: var(--brand); color: var(--brand-ink); }
 .lu-row.picked .grip .dots { opacity: 0; }
 .lu-row.swappable .grip { box-shadow: inset 0 0 0 1px var(--brand-line); }
 .lu-row.dragging { opacity: 0.4; }
@@ -90,7 +90,7 @@
 }
 .lu-spot .nm i { font-style: normal; font-size: 10.5px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
 .lu-spot.empty .nm { background: transparent; color: var(--fg-3); box-shadow: inset 0 0 0 1px var(--line-2); }
-.lu-spot.me .nm { background: var(--brand); color: var(--bg, #0a0a0c); }
+.lu-spot.me .nm { background: var(--brand); color: var(--brand-ink); }
 .lu-spot.me .nm i { color: inherit; }
 .lu-spot.dh { left: 12%; top: 90%; transform: translate(-50%, -50%); }
 
@@ -99,7 +99,7 @@
 .lu-me .big { font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; }
 .lu-me .big.dim { color: var(--fg-2); font-size: 26px; }
 .lu-me .order-badge {
-  width: 64px; height: 64px; border-radius: 18px; background: var(--brand); color: var(--bg, #0a0a0c);
+  width: 64px; height: 64px; border-radius: 18px; background: var(--brand); color: var(--brand-ink);
   display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0;
 }
 .lu-me .order-badge b { font-size: 28px; font-weight: 800; letter-spacing: -0.04em; }

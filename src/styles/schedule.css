@@ -126,7 +126,7 @@
 .cal-ev.info { background: var(--info-soft); color: var(--info); }
 .cal-ev.warn { background: var(--warn-soft); color: var(--warn); }
 .cal-tr { font-size: 10.5px; color: var(--fg-3); margin-top: auto; }
-.cal-tr.off { color: var(--fg-4); }
+.cal-tr.off { color: var(--fg-3); opacity: 0.8; }
 .sel-day .card-head { margin-bottom: 6px; }
 .row.past { opacity: 0.5; }
 @media (max-width: 640px) {

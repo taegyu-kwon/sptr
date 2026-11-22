@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useStore } from "../lib/store";
 import { BrandMark } from "../components/icons";
-import { FieldArtwork } from "../components/ClubArtwork";
 import { Notice, Seg } from "../components/ui";
 import type { PeekResult } from "../lib/remote";
 import "../styles/team.css";
@@ -128,23 +127,19 @@ export default function Auth() {
       <aside className="auth-side">
         <div className="top">
           <BrandMark />
-          <span className="wordmark">sptr<i>.</i></span><span className="auth-edition">THE CLUBHOUSE</span>
+          <span className="wordmark">SPTR<i>.</i></span>
         </div>
-        <div className="auth-story">
-          <span className="auth-eyebrow">FOR THE LOVE OF THE GAME</span>
-          <h1 className="auth-headline">GREAT TEAMS.<br /><em>START HERE.</em></h1>
-          <p className="auth-caption">좋은 팀의 시작, 함께 성장하는 매일.</p>
-          <p className="auth-description">선수의 가능성을 발견하고, 팀의 다음 경기를 준비하는 곳.<br />당신의 야구를 위한 하나의 클럽하우스.</p>
-          <FieldArtwork />
+        <div>
+          <h1 className="big">SPTR<i>.</i></h1>
+          <p className="tag">계약된 팀 전용 유소년 야구 성장 관리 플랫폼</p>
         </div>
         <div className="foot">
-          <span>BASEBALL, BETTER TOGETHER.</span><span>© {new Date().getFullYear()} SPTR</span>
+          <span>© {new Date().getFullYear()} SPTR</span>
         </div>
       </aside>
 
       <div className="auth-main">
         <div className="auth-card">
-          <span className="auth-eyebrow">WELCOME TO YOUR CLUBHOUSE</span>
           <h2 className="auth-title">{title}</h2>
           <p className="auth-sub">{sub}</p>
 

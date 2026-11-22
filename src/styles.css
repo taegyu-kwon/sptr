@@ -1,52 +1,53 @@
 /* ================================================================
-   SPTR — team workspace
-   밝은 클럽하우스 표면 위에 코발트 강조. 공통 토큰은 모든 역할의 화면에서 공유한다.
+   SPTR — design system v2 (2026-10 디자인, 11-22 복원)
+   검정 캔버스 위에 테두리 없는 톤 패널. 색은 데이터에만, 라임 하나.
+   화면마다 주인공 하나(큰 숫자·링)를 세우고 나머지는 실선과 여백으로 받친다.
    ================================================================ */
 :root {
   /* 캔버스 · 표면 */
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --surface-2: #f0f3f6;
-  --surface-3: #e7ecf1;
-  --surface-4: #dce3eb;
-  --line: #e9edf1;
-  --line-2: #d7dfe8;
-  --edge: #e9edf1;
+  --bg: #000000;
+  --surface: #0e0e11;
+  --surface-2: #17171b;
+  --surface-3: #202026;
+  --surface-4: #2b2b32;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.12);
+  --edge: rgba(255, 255, 255, 0.05);
 
   /* 글자 */
-  --fg: #1d2c3c;
-  --fg-2: #5c6c7c;
-  --fg-3: #64748b;
-  --fg-4: #9caaba;
+  --fg: #f5f5f6;
+  --fg-2: #a0a0a8;
+  --fg-3: #8b8b94; /* 10월 값 #67676f 는 작은 글자 대비(3.6:1)가 모자라 한 단계 밝힘 */
+  --fg-4: #3a3a41;
 
   /* 브랜드 */
-  --brand: #3659df;
-  --brand-hover: #2747be;
-  --brand-ink: #ffffff;
-  --brand-soft: #edf1ff;
-  --brand-line: #a8b9fa;
+  --brand: #c9f542;
+  --brand-hover: #d8fb66;
+  --brand-ink: #0b0e00;
+  --brand-soft: rgba(201, 245, 66, 0.12);
+  --brand-line: rgba(201, 245, 66, 0.4);
 
   /* 의미색 */
-  --good: #218164;   --good-soft: #e8f5ee;   --good-line: rgba(95, 216, 143, 0.32);
-  --warn: #a8651f;   --warn-soft: #fff3e2;   --warn-line: rgba(243, 183, 75, 0.32);
-  --bad: #c74c4c;    --bad-soft: #fceeee;    --bad-line: rgba(242, 100, 95, 0.32);
-  --info: #3c76b8;   --info-soft: #eaf3fd;  --info-line: rgba(111, 179, 255, 0.32);
-  --violet: #7954b8; --violet-soft: #f1ecfa; --violet-line: rgba(181, 156, 255, 0.32);
+  --good: #5fd88f;   --good-soft: rgba(95, 216, 143, 0.12);   --good-line: rgba(95, 216, 143, 0.32);
+  --warn: #f3b74b;   --warn-soft: rgba(243, 183, 75, 0.12);   --warn-line: rgba(243, 183, 75, 0.32);
+  --bad: #f2645f;    --bad-soft: rgba(242, 100, 95, 0.12);    --bad-line: rgba(242, 100, 95, 0.32);
+  --info: #6fb3ff;   --info-soft: rgba(111, 179, 255, 0.12);  --info-line: rgba(111, 179, 255, 0.32);
+  --violet: #b59cff; --violet-soft: rgba(181, 156, 255, 0.12); --violet-line: rgba(181, 156, 255, 0.32);
 
   /* 등급 */
-  --grade-S: #3659df;
-  --grade-A: #218164;
-  --grade-B: #3c76b8;
-  --grade-C: #a8651f;
-  --grade-D: #c74c4c;
+  --grade-S: #c9f542;
+  --grade-A: #5fd88f;
+  --grade-B: #6fb3ff;
+  --grade-C: #f3b74b;
+  --grade-D: #f2645f;
 
   /* 차트 */
-  --chart-1: #3659df;
-  --chart-2: #3c76b8;
-  --chart-3: #218164;
-  --chart-4: #7954b8;
-  --chart-5: #b47a39;
-  --chart-grid: #e4eaf0;
+  --chart-1: #f5f5f6;
+  --chart-2: #6fb3ff;
+  --chart-3: #5fd88f;
+  --chart-4: #b59cff;
+  --chart-5: #f3b74b;
+  --chart-grid: rgba(255, 255, 255, 0.06);
 
   /* 모양 */
   --r-sm: 8px;
@@ -54,8 +55,8 @@
   --r-lg: 18px;
   --r-xl: 24px;
   --radius: 10px; /* 하위 호환 */
-  --maxw: 1280px;
-  --shadow-pop: 0 12px 40px rgba(29, 44, 60, 0.1), 0 0 0 1px var(--line-2);
+  --maxw: 1120px;
+  --shadow-pop: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--line-2);
 
   --mono: "SF Mono", SFMono-Regular, ui-monospace, Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -64,7 +65,7 @@
 /* ---------- 기본 ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-html { color-scheme: light; }
+html { color-scheme: dark; }
 
 body {
   margin: 0;
@@ -96,6 +97,7 @@ b, strong { font-weight: 600; }
 
 /* ================================================================
    앱 셸 — 상단 헤더 + 가로 탭 내비 (모바일도 같은 구조, 드로어 없음)
+   메뉴가 탭 줄보다 길면 가로로 넘기고, 더 있는 쪽 끝을 페이드로 알린다.
    ================================================================ */
 .app { min-height: 100vh; }
 
@@ -110,14 +112,19 @@ b, strong { font-weight: 600; }
   height: 60px; display: flex; align-items: center; gap: 14px;
 }
 .hdr-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr-home { display: flex; align-items: center; gap: 10px; flex-shrink: 0; border-radius: 8px; }
 .brand-mark { width: 28px; height: 28px; flex-shrink: 0; display: block; }
 /* 워드마크 — 로그인 대형 제목 "SPTR."과 같은 모양(굵게, 좁은 자간, 라임 점) */
 .wordmark { font-weight: 800; font-size: 19px; letter-spacing: -0.05em; line-height: 1; white-space: nowrap; }
 .wordmark i { font-style: normal; color: var(--brand); }
 .hdr-sep { width: 1px; height: 18px; background: var(--line-2); flex-shrink: 0; }
 .hdr-team { font-size: 13.5px; font-weight: 500; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 4px; }
-.hdr-user { display: flex; align-items: center; gap: 9px; padding: 4px 8px 4px 4px; }
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.hdr-right > .pill { margin-right: 4px; }
+.hdr-user { display: flex; align-items: center; gap: 9px; padding: 4px 8px 4px 4px; border-radius: 10px; min-width: 0; transition: background 0.12s; }
+.hdr-user:hover, .hdr-user.active { background: var(--surface-2); }
+.hdr-user .who { min-width: 0; max-width: 180px; }
+.hdr-user .who b, .hdr-user .who span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hdr-user .who { display: flex; flex-direction: column; line-height: 1.15; }
 .hdr-user .who b { font-size: 13px; font-weight: 600; }
 .hdr-user .who span { font-size: 11px; color: var(--fg-3); }
@@ -136,8 +143,32 @@ b, strong { font-weight: 600; }
 .tabnav a:hover { color: var(--fg); background: rgba(255, 255, 255, 0.03); }
 .tabnav a.active { color: var(--fg); border-bottom-color: var(--brand); }
 .tabnav a.active svg { color: var(--brand); opacity: 1; }
+.tabnav a:focus-visible { outline-offset: -2px; }
+/* 넘친 쪽 끝 페이드 + 넘기기 화살표(마우스 환경) */
+.tabnav-wrap::before, .tabnav-wrap::after {
+  content: ""; position: absolute; top: 0; bottom: 1px; width: 56px; pointer-events: none; z-index: 1;
+  opacity: 0; transition: opacity 0.15s;
+}
+.tabnav-wrap::before { left: 0; background: linear-gradient(270deg, rgba(0, 0, 0, 0), #000 78%); }
+.tabnav-wrap::after { right: 0; background: linear-gradient(90deg, rgba(0, 0, 0, 0), #000 78%); }
+.tabnav-wrap.more-left::before, .tabnav-wrap.more-right::after { opacity: 1; }
+.tabnav-arrow {
+  position: absolute; top: 8px; z-index: 2; display: none; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
+  background: var(--surface-2); color: var(--fg-2); cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.tabnav-arrow svg { width: 15px; height: 15px; }
+.tabnav-arrow:hover { background: var(--surface-3); color: var(--fg); }
+.tabnav-arrow.prev { left: 8px; } .tabnav-arrow.prev svg { transform: scaleX(-1); }
+.tabnav-arrow.next { right: 8px; }
+@media (hover: hover) and (min-width: 761px) {
+  .tabnav-wrap.more-left .tabnav-arrow.prev, .tabnav-wrap.more-right .tabnav-arrow.next { display: inline-flex; }
+}
 
 .main { max-width: var(--maxw); margin: 0 auto; padding: 32px 24px 96px; }
+.main:focus { outline: none; }
+.skip-link { position: fixed; top: -70px; left: 20px; z-index: 100; padding: 12px 18px; background: var(--brand); color: var(--brand-ink); border-radius: 10px; font-weight: 600; }
+.skip-link:focus { top: 12px; }
 
 @media (max-width: 760px) {
   .hdr-row { height: 54px; padding: 0 12px 0 16px; gap: 10px; }
@@ -145,10 +176,8 @@ b, strong { font-weight: 600; }
   .hdr-team { font-size: 14px; font-weight: 600; color: var(--fg); }
   .hdr-user .who { display: none; }
   .tabnav-wrap { padding: 0 6px; }
-  .tabnav-wrap::after {
-    content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 36px; pointer-events: none;
-    background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.85));
-  }
+  .tabnav-wrap::before, .tabnav-wrap::after { width: 36px; }
+  .hdr-right > .pill { margin-right: 0; }
   .tabnav a { height: 42px; padding: 0 10px; font-size: 13px; }
   .tabnav a svg { display: none; }
   .main { padding: 20px 16px 80px; }
@@ -161,6 +190,7 @@ b, strong { font-weight: 600; }
 .page-head > div { min-width: 0; }
 .page-head .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .page-title { font-size: 28px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.15; margin: 0; }
+.page-title { word-break: keep-all; }
 .page-desc { font-size: 14px; color: var(--fg-2); margin: 8px 0 28px; max-width: 64ch; line-height: 1.55; word-break: keep-all; overflow-wrap: break-word; }
 .page-head .page-desc { margin-bottom: 0; }
 .page-desc b { color: var(--fg); font-weight: 600; }
@@ -220,6 +250,7 @@ b, strong { font-weight: 600; }
 .grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 32px; align-items: start; }
+.split > * { min-width: 0; }
 .split.even { grid-template-columns: 1fr 1fr; }
 .split.wide-left { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
 @media (max-width: 1100px) { .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -369,7 +400,7 @@ b, strong { font-weight: 600; }
 
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
-  height: 22px; padding: 0 8px; border-radius: 999px;
+  min-height: 22px; padding: 0 8px; border-radius: 999px;
   font-size: 11.5px; font-weight: 600; line-height: 1; white-space: nowrap;
   background: var(--surface-3); color: var(--fg-2); border: 1px solid transparent; vertical-align: middle;
 }
@@ -381,7 +412,7 @@ b, strong { font-weight: 600; }
 .pill.violet { background: var(--violet-soft); color: var(--violet); }
 .pill.brand { background: var(--brand-soft); color: var(--brand); }
 .pill.outline { background: transparent; border-color: var(--line-2); color: var(--fg-2); }
-.pill.lg { height: 26px; padding: 0 10px; font-size: 12.5px; }
+.pill.lg { min-height: 26px; padding: 0 10px; font-size: 12.5px; }
 .badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--surface-3); color: var(--fg-2); }
 
 .avatar {
@@ -465,7 +496,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 }
 .field select, .select, .lineup-slot select {
   appearance: none; -webkit-appearance: none; padding-right: 34px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2367676f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8b94' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
 }
 .field input[type="number"] { -moz-appearance: textfield; }
@@ -790,3 +821,17 @@ span.ok-box, span.error-box { display: inline-flex; padding: 6px 10px; }
 .grow { flex: 1; min-width: 0; }
 .hide-mobile { } .only-mobile { display: none; }
 @media (max-width: 640px) { .hide-mobile { display: none !important; } .only-mobile { display: initial; } }
+
+/* ================================================================
+   10월 이후 화면이 함께 쓰는 조각 — 같은 문법(톤 패널 · 실선 · 라임)
+   ================================================================ */
+/* 영문 머리표 — .eyebrow 와 같은 모양 */
+.editorial-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); }
+.editorial-label > span { font-weight: 500; }
+/* 섹션 머리 오른쪽의 "더 보기" 링크 */
+.text-action { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--fg-2); white-space: nowrap; border-radius: 6px; transition: color 0.12s; }
+.text-action svg { width: 14px; height: 14px; }
+.text-action:hover { color: var(--brand); }
+/* 대비 보정 — 라임 톤 줄(내 줄) 위의 보조 글자, 증감 알약의 "직전 대비" */
+.tbl tr.me td.faded, .tbl tr.me td.dim, .tbl tr.me .two small, .tbl tr.me .faint { color: var(--fg-2); }
+.delta .vs { opacity: 0.9; }
