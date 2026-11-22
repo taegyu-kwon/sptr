@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useStore } from "./lib/store";
 import Layout from "./components/Layout";
 import Auth from "./pages/Auth";
+import { Splash, Toasts } from "./components/Toast";
 
 import InputPage from "./pages/player/Input";
 import StatsPage from "./pages/player/Stats";
@@ -30,7 +31,20 @@ import TeamPage from "./pages/coach/Team";
 import AccountPage from "./pages/Account";
 
 export default function App() {
-  const { user } = useStore();
+  return (
+    <>
+      <Screens />
+      <Toasts />
+    </>
+  );
+}
+
+function Screens() {
+  const { user, status } = useStore();
+
+  // 서버 모드: 저장된 로그인 확인 · 팀 데이터 읽는 중
+  if (status === "booting") return <Splash text="로그인 상태를 확인하는 중입니다" />;
+  if (status === "loading") return <Splash text="팀 데이터를 불러오는 중입니다" />;
 
   if (!user) {
     return (

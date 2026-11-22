@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "../lib/store";
 import { Icon, BrandMark } from "./icons";
 import { Avatar } from "./ui";
+import "../styles/server.css";
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> };
 type NavGroup = { label: string; items: NavItem[] };
@@ -47,7 +48,7 @@ const navigation: Record<string, NavGroup[]> = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout, db } = useStore();
+  const { user, logout, db, mode } = useStore();
   const navigate = useNavigate();
   const location = useLocation();
   const drawer = useRef<HTMLDialogElement>(null);
@@ -85,7 +86,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <aside className="workspace-sidebar">{sidebar()}</aside>
     <dialog ref={drawer} className="mobile-drawer" aria-label="전체 메뉴" onClose={() => { setMenuOpen(false); menuButton.current?.focus(); }} onClick={e => { if (e.target === drawer.current) drawer.current.close(); }}><div className="mobile-drawer-inner">{sidebar(true)}</div></dialog>
     <div className="workspace-content">
-      <header className="workspace-topbar"><div className="workspace-breadcrumb"><button ref={menuButton} className="icon-btn mobile-menu" aria-label="전체 메뉴 열기" aria-expanded={menuOpen} onClick={() => { drawer.current?.showModal(); setMenuOpen(true); }}><Icon.Menu /></button><span>워크스페이스</span><Icon.ChevronRight /><b>{current?.label ?? (location.pathname === "/account" ? "내 계정" : "팀 관리")}</b></div><div className="workspace-top-actions">{user.relation === "parent" && <span className="pill outline parent-badge" title="학부모 계정은 선수 화면을 보기만 할 수 있습니다">학부모 · 보기 전용</span>}<span className="workspace-date">{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span><Link to={calendar} className="top-calendar"><Icon.Calendar /><span>일정 보기</span></Link></div></header>
+      <header className="workspace-topbar"><div className="workspace-breadcrumb"><button ref={menuButton} className="icon-btn mobile-menu" aria-label="전체 메뉴 열기" aria-expanded={menuOpen} onClick={() => { drawer.current?.showModal(); setMenuOpen(true); }}><Icon.Menu /></button><span>워크스페이스</span><Icon.ChevronRight /><b>{current?.label ?? (location.pathname === "/account" ? "내 계정" : "팀 관리")}</b></div><div className="workspace-top-actions">{mode === "demo" && <span className="pill outline demo-badge" title="체험 모드의 데이터는 서버에 올라가지 않고 이 브라우저에만 저장됩니다">체험 모드<span className="demo-badge-more"> · 이 브라우저에만 저장</span></span>}{user.relation === "parent" && <span className="pill outline parent-badge" title="학부모 계정은 선수 화면을 보기만 할 수 있습니다">학부모 · 보기 전용</span>}<span className="workspace-date">{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "short" }).format(new Date())}</span><Link to={calendar} className="top-calendar"><Icon.Calendar /><span>일정 보기</span></Link></div></header>
       <main className="main" id="main-content" tabIndex={-1}>{children}</main>
       <footer className="app-footer"><span>SPTR CLUBHOUSE</span><span>EVERY PLAYER. EVERY POSSIBILITY.</span></footer>
     </div>

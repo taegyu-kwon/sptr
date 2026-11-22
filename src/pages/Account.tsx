@@ -7,7 +7,8 @@ type Msg = { kind: "ok" | "error"; text: string } | null;
 
 /** 내 계정 — 이름 수정·비밀번호 변경(선수·학부모·코치 공통) */
 export default function AccountPage() {
-  const { db, user, updateAccount, changePassword } = useStore();
+  const { db, user, updateAccount, changePasswordAsync } = useStore();
+  const [pwBusy, setPwBusy] = useState(false);
   const me = user!;
   const team = db.teams.find(t => t.id === me.teamId);
   const player = me.playerId ? db.players.find(p => p.id === me.playerId) : null;
@@ -31,12 +32,15 @@ export default function AccountPage() {
     setNameMsg({ kind: "ok", text: "이름을 저장했습니다." });
   };
 
-  const savePassword = (e: React.FormEvent) => {
+  const savePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!current) return setPwMsg({ kind: "error", text: "현재 비밀번호를 입력하세요." });
     if (next.length < 6) return setPwMsg({ kind: "error", text: "새 비밀번호는 6자 이상이어야 합니다." });
     if (next !== confirm) return setPwMsg({ kind: "error", text: "새 비밀번호와 확인이 서로 다릅니다." });
-    const err = changePassword(current, next);
+    if (pwBusy) return;
+    setPwBusy(true);
+    const err = await changePasswordAsync(current, next); // 서버 모드는 서버에 확인·변경한다
+    setPwBusy(false);
     if (err) return setPwMsg({ kind: "error", text: err });
     setCurrent("");
     setNext("");
@@ -105,7 +109,7 @@ export default function AccountPage() {
           </div>
           {pwMsg && <Notice kind={pwMsg.kind} className="mt12">{pwMsg.text}</Notice>}
           <div className="flex gap12 wrap mt16">
-            <button className="btn" type="submit">비밀번호 변경</button>
+            <button className="btn" type="submit" disabled={pwBusy}>{pwBusy ? "변경하는 중" : "비밀번호 변경"}</button>
           </div>
         </form>
       </div>

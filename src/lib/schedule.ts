@@ -1,8 +1,9 @@
 /* ================================================================
    훈련 공지 · 월간 일정 데이터 — 메인 DB(store.tsx)와 따로 저장한다.
-   서버 연결(2단계) 전까지 브라우저에만 저장. 예시 데이터는 오늘 날짜 기준으로 만든다.
+   체험 모드: 브라우저(localStorage)에만 저장. 예시 데이터는 오늘 날짜 기준으로 만든다.
+   서버 모드: store.tsx 가 서버에서 읽은 일정을 setServerSchedule 로 넣어 두고, 수정은 메모리 → 서버 순서로 쓴다.
    ================================================================ */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Position } from "./types";
 
 export type Group = "전체" | "투수조" | "야수조";
@@ -237,7 +238,7 @@ function seedReads(date: string, updatedAt: string, today: string): NoticeRead[]
   return reads;
 }
 
-function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "seeded"> {
+export function buildScheduleSeed(teamId: string, author: string): Omit<ScheduleDB, "seeded"> {
   const today = todayISO();
   const month = monthOf(today);
   const nextMonth = addMonths(month, 1);
@@ -413,25 +414,61 @@ function ensureSeed(db: ScheduleDB, teamId: string, author: string): ScheduleDB 
   };
 }
 
-/** 팀 일정 데이터. 처음 열 때 그 팀의 예시 데이터를 만든다. */
+/* ---------- 서버 모드 저장소 (store.tsx 가 채운다) ---------- */
+
+let serverSdb: ScheduleDB | null = null;
+let serverWrite: ((prev: ScheduleDB, next: ScheduleDB) => void) | null = null;
+const serverListeners = new Set<() => void>();
+const subscribeServer = (l: () => void) => {
+  serverListeners.add(l);
+  return () => { serverListeners.delete(l); };
+};
+/** 서버 모드의 일정 데이터. 체험 모드·로그아웃 상태면 null */
+export const getServerSchedule = () => serverSdb;
+/**
+ * 서버에서 읽은 일정을 넣는다(null = 서버 모드 끝). write 는 화면이 고친 변경 전·후를 받아 서버에 쓰는 함수.
+ * 되돌리기(서버 쓰기 실패)에도 이 함수를 쓴다.
+ */
+export function setServerSchedule(sdb: ScheduleDB | null, write?: (prev: ScheduleDB, next: ScheduleDB) => void) {
+  serverSdb = sdb;
+  if (write !== undefined || sdb === null) serverWrite = sdb === null ? null : write ?? null;
+  serverListeners.forEach(l => l());
+}
+
+/** 팀 일정 데이터. 체험 모드에서는 처음 열 때 그 팀의 예시 데이터를 만든다. */
 export function useSchedule(teamId: string) {
-  const [sdb, setSdb] = useState<ScheduleDB>(() => ensureSeed(load(), teamId, "박정후 감독"));
+  const server = useSyncExternalStore(subscribeServer, getServerSchedule);
+  const isServer = server !== null;
+  // 서버 모드 데이터는 브라우저에 저장하지 않는다(체험 모드 저장본도 건드리지 않는다)
+  const [local, setLocal] = useState<ScheduleDB>(() => (getServerSchedule() ? empty() : ensureSeed(load(), teamId, "박정후 감독")));
   useEffect(() => {
+    if (isServer) return;
     try {
-      localStorage.setItem(KEY, JSON.stringify(sdb));
+      localStorage.setItem(KEY, JSON.stringify(local));
     } catch {
       // 저장 공간 부족 등은 무시(시연용)
     }
-  }, [sdb]);
+  }, [local, isServer]);
   // 다른 탭(예: 선수 화면)에서 저장한 내용을 받아 온다 — 읽음 표시·일정 수정이 서로 덮어쓰이지 않게
   useEffect(() => {
+    if (isServer) return;
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY) setSdb(ensureSeed(load(), teamId, "박정후 감독"));
+      if (e.key === KEY) setLocal(ensureSeed(load(), teamId, "박정후 감독"));
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, [teamId]);
-  const update = (fn: (prev: ScheduleDB) => ScheduleDB) => setSdb(prev => fn(prev));
+  }, [teamId, isServer]);
+  const sdb = server ?? local;
+  const update = (fn: (prev: ScheduleDB) => ScheduleDB) => {
+    if (!isServer) return setLocal(prev => fn(prev));
+    const prev = getServerSchedule();
+    if (!prev) return;
+    const next = fn(prev);
+    if (next === prev) return;
+    serverSdb = next;
+    serverListeners.forEach(l => l());
+    serverWrite?.(prev, next); // 메모리 먼저 → 서버 쓰기(실패하면 store 가 되돌린다)
+  };
   return {
     sdb,
     update,

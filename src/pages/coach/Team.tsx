@@ -20,7 +20,7 @@ function expiryText(c: SignupCode, today: string): string {
 }
 
 export default function TeamPage() {
-  const { db, user, updateTeam, issueCode, revokeCode } = useStore();
+  const { db, user, updateTeam, issueCode, revokeCode, mode, allPlayers, uploadExample } = useStore();
   const teamId = user!.teamId;
   const team = db.teams.find(t => t.id === teamId);
   const today = todayISO();
@@ -32,6 +32,16 @@ export default function TeamPage() {
   const [fresh, setFresh] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
+
+  /** 서버 팀에 선수가 한 명도 없을 때만: 예시 데이터 넣기 */
+  const canSeed = mode === "server" && allPlayers.filter(p => p.teamId === teamId).length === 0;
+  const [seedState, setSeedState] = useState<{ busy: boolean; text: string | null; error: string | null }>({ busy: false, text: null, error: null });
+  const seedExample = async () => {
+    if (seedState.busy) return;
+    setSeedState({ busy: true, text: "준비하는 중", error: null });
+    const err = await uploadExample((label, done, total) => setSeedState({ busy: true, text: `${label} 올리는 중 (${Math.min(done + 1, total)}/${total})`, error: null }));
+    setSeedState({ busy: false, text: null, error: err });
+  };
 
   const coaches = db.users.filter(u => u.teamId === teamId && u.role === "coach");
   const coachCodes = db.codes.filter(c => c.teamId === teamId && c.role === "coach" && !c.used && !c.revoked);
@@ -159,6 +169,25 @@ export default function TeamPage() {
           <Empty>연결된 팀 정보가 없습니다.</Empty>
         )}
       </div>
+
+      {(canSeed || seedState.error) && (
+        <div className="panel">
+          <div className="card-head">
+            <h3>예시 데이터</h3>
+            <span className="meta">선수가 없는 팀에서만 넣을 수 있습니다</span>
+          </div>
+          <p className="small muted">예시 선수 24명과 측정·시합·출석·공지·일정을 넣어 화면을 둘러볼 수 있습니다. 넣은 뒤에는 일반 데이터처럼 고치거나 보관할 수 있습니다.</p>
+          {seedState.text && <Notice kind="info" className="mt12">{seedState.text}</Notice>}
+          {seedState.error && <Notice kind="error" className="mt12">{seedState.error}</Notice>}
+          {canSeed && (
+            <div className="flex gap12 wrap mt16">
+              <button type="button" className="btn outline" onClick={seedExample} disabled={seedState.busy}>
+                {seedState.busy ? "올리는 중" : "예시 데이터 넣기"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="panel">
         <div className="card-head">
